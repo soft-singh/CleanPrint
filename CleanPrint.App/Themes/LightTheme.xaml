@@ -1,0 +1,26 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- The Classic theme's values for the App* brushes: the default appearance this app has always had. Only a FALLBACK now — Theming/ThemeManager.Apply writes every brush (these
+         and the Theme* ones) from the chosen theme into the application's own resources at startup, and those win over this dictionary. It still matters for the designer and for the
+         instant before the first Apply. -->
+    <SolidColorBrush x:Key="AppWindowBackgroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="AppWindowForegroundBrush" Color="#000000"/>
+    <SolidColorBrush x:Key="AppSecondaryTextBrush" Color="DimGray"/>
+    <SolidColorBrush x:Key="AppPanelBackgroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="AppPreviewCanvasBackgroundBrush" Color="#EEEEEE"/>
+    <SolidColorBrush x:Key="AppBorderBrush" Color="Gray"/>
+    <!-- Colour of the toolbar/title-bar/status-bar icons (overridable from Settings > Icon colour). -->
+    <SolidColorBrush x:Key="AppIconBrush" Color="#595959"/>
+    <!-- Sliders (see Controls.xaml): the groove, and the thumb. -->
+    <SolidColorBrush x:Key="AppSliderTrackBrush" Color="#C8C8C8"/>
+    <SolidColorBrush x:Key="AppSliderThumbBrush" Color="#FFFFFF"/>
+    <!-- Scrollbars (see Controls.xaml): the thumb at rest, under the pointer, and while being dragged. The track is transparent. -->
+    <SolidColorBrush x:Key="AppScrollThumbBrush" Color="#C2C2C2"/>
+    <SolidColorBrush x:Key="AppScrollThumbHoverBrush" Color="#8E8E8E"/>
+    <SolidColorBrush x:Key="AppScrollThumbPressedBrush" Color="#686868"/>
+    <!-- Title bar and status bar (the custom window chrome), plus the hover/pressed fills of the flat
+         icon buttons that live on them. Added with the title-bar redesign. -->
+    <SolidColorBrush x:Key="AppChromeBackgroundBrush" Color="#F3F3F3"/>
+    <SolidColorBrush x:Key="AppHoverBrush" Color="#1A000000"/>
+    <SolidColorBrush x:Key="AppPressedBrush" Color="#33000000"/>
+</ResourceDictionary>

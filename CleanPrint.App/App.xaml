@@ -1,0 +1,23 @@
+<Application x:Class="CleanPrint.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- The App* brushes with the Classic theme's values: what shows in the instant before the first theme is applied (Theming/ThemeManager.Apply, called at startup with the saved
+                     theme), and in the designer. ThemeManager then writes every brush — these and the Theme* ones — straight into the application's own resources, which win over this dictionary. -->
+                <ResourceDictionary Source="Themes/LightTheme.xaml"/>
+                <ResourceDictionary Source="Themes/Icons.xaml"/>
+                <!-- Slim scroll bars, sliders and lists, built on the theme brushes. -->
+                <ResourceDictionary Source="Themes/Controls.xaml"/>
+                <!-- The look of every standard control (buttons, boxes, drop-downs, tabs, menus...): implicit styles on the Theme* brushes. -->
+                <ResourceDictionary Source="Themes/InputStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+        <!-- NOTE: there is deliberately NO ScrollBar style here. The app's scrollbars (slim, no arrows, themed) are the implicit ScrollBar and ScrollViewer styles in
+             Themes/Controls.xaml. An older, simpler ScrollBar style used to live in THIS spot — and because a style declared directly in Application.Resources beats the
+             same key in a merged dictionary, it silently shadowed the real one (and was itself ineffective: it set Width = 10, but the stock template's MinWidth of 17 won).
+             Keep it that way: one definition, in Controls.xaml. -->
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F2688F"/><stop offset="1" stop-color="#A11D52"/></linearGradient>
+<clipPath id="pg"><path d="M72 40 H152 L196 84 V208 a10 10 0 0 1 -10 10 H82 a10 10 0 0 1 -10 -10 Z"/></clipPath></defs>
+<rect x="8" y="8" width="240" height="240" rx="58" fill="url(#g)"/>
+<g transform="translate(-6 0)">
+<g clip-path="url(#pg)"><rect x="60" y="30" width="150" height="200" fill="#FFFFFF"/>
+<polygon points="60,30 126,30 96,230 60,230" fill="#C7AEB9"/><circle cx="104" cy="92" r="4" fill="#7C5667" opacity="0.8"/><circle cx="124" cy="76" r="3" fill="#7C5667" opacity="0.8"/><circle cx="96" cy="128" r="5" fill="#7C5667" opacity="0.8"/><circle cx="118" cy="150" r="3.5" fill="#7C5667" opacity="0.8"/><circle cx="140" cy="112" r="3" fill="#7C5667" opacity="0.8"/><circle cx="108" cy="176" r="4.5" fill="#7C5667" opacity="0.8"/><circle cx="132" cy="196" r="3" fill="#7C5667" opacity="0.8"/><circle cx="150" cy="150" r="2.5" fill="#7C5667" opacity="0.8"/><circle cx="92" cy="64" r="3" fill="#7C5667" opacity="0.8"/><circle cx="150" cy="84" r="2.5" fill="#7C5667" opacity="0.8"/><circle cx="126" cy="128" r="2.5" fill="#7C5667" opacity="0.8"/><circle cx="100" cy="204" r="3" fill="#7C5667" opacity="0.8"/></g>
+<path d="M152 40 V74 a10 10 0 0 0 10 10 H196 Z" fill="#EBD3DC" clip-path="url(#pg)"/>
+<line x1="126" y1="30" x2="96" y2="230" stroke="#FFD36B" stroke-width="5" clip-path="url(#pg)"/>
+</g>
+</svg>

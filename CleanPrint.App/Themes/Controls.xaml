@@ -1,0 +1,406 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Theme-aware replacements for WPF controls whose stock look ignores the app's light/dark theme. Merged at application level
+         (App.xaml), AFTER the theme dictionary; every colour is a DynamicResource, so switching theme recolours them live. A slider
+         is drawn in the program's own colours — its groove and thumb from the theme (AppSliderTrackBrush, AppSliderThumbBrush) and
+         its accent from AppIconBrush, the same grey as the icons (and so whatever Settings > Icon colour has been set to) — rather
+         than Windows' blue. -->
+
+    <!-- Slider: the two halves of the groove either side of the thumb. The one before the thumb is drawn in the accent colour (so
+         the slider reads as a progress bar); the one after is invisible and only exists to catch clicks. -->
+    <Style x:Key="SliderTransparentRepeatButton" TargetType="RepeatButton">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SliderFilledRepeatButton" TargetType="RepeatButton">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Height="4" CornerRadius="2,0,0,2" Background="{DynamicResource AppIconBrush}" VerticalAlignment="Center"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SliderThumbStyle" TargetType="Thumb">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Width" Value="14"/>
+        <Setter Property="Height" Value="14"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Ellipse x:Name="Dot" Fill="{DynamicResource AppSliderThumbBrush}" Stroke="{DynamicResource AppIconBrush}" StrokeThickness="2"/>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource AppIconBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource AppIconBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The implicit Slider style: no x:Key, so it applies to every Slider in the application. (All the app's sliders are
+         horizontal; this template does not handle a vertical one.) -->
+    <Style TargetType="Slider">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid MinHeight="20" Background="Transparent" SnapsToDevicePixels="True">
+                        <Border Height="4" CornerRadius="2" Background="{DynamicResource AppSliderTrackBrush}" VerticalAlignment="Center"/>
+                        <Track x:Name="PART_Track" VerticalAlignment="Center">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource SliderFilledRepeatButton}" Command="Slider.DecreaseLarge"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource SliderTransparentRepeatButton}" Command="Slider.IncreaseLarge"/>
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource SliderThumbStyle}"/>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- =================================================================================================================
+         Scrollbars: slim (8 px), no arrow buttons, a rounded thumb on a transparent track, darker under the pointer and while
+         dragging — in the theme's greys, so they follow light/dark. Implicit styles (no x:Key), so they apply to every scrollbar in the
+         application: the preview, the Effects panel, lists, dropdowns, text boxes. The stock scrollbar is 17 px wide, with arrow buttons
+         and a solid track, and ignores the dark theme.
+         Clicking the track still pages; dragging the thumb still scrolls; only the arrows are gone (the mouse wheel and the thumb cover them).
+         ================================================================================================================= -->
+
+    <Style x:Key="ScrollBarPageButton" TargetType="RepeatButton">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The thumb. Vertical and horizontal differ only in which way the 1 px margin runs and which dimension has a minimum length
+         (so a long document doesn't shrink the thumb to a speck). -->
+    <Style x:Key="ScrollBarThumbVertical" TargetType="Thumb">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border x:Name="Pill" CornerRadius="3" Margin="1,0" Background="{DynamicResource AppScrollThumbBrush}"/>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Pill" Property="Background" Value="{DynamicResource AppScrollThumbHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Pill" Property="Background" Value="{DynamicResource AppScrollThumbPressedBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ScrollBarThumbHorizontal" TargetType="Thumb">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="MinWidth" Value="28"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border x:Name="Pill" CornerRadius="3" Margin="0,1" Background="{DynamicResource AppScrollThumbBrush}"/>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Pill" Property="Background" Value="{DynamicResource AppScrollThumbHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Pill" Property="Background" Value="{DynamicResource AppScrollThumbPressedBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <ControlTemplate x:Key="SlimVerticalScrollBar" TargetType="ScrollBar">
+        <Grid Background="Transparent" SnapsToDevicePixels="True">
+            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                <Track.DecreaseRepeatButton>
+                    <RepeatButton Style="{StaticResource ScrollBarPageButton}" Command="ScrollBar.PageUpCommand"/>
+                </Track.DecreaseRepeatButton>
+                <Track.IncreaseRepeatButton>
+                    <RepeatButton Style="{StaticResource ScrollBarPageButton}" Command="ScrollBar.PageDownCommand"/>
+                </Track.IncreaseRepeatButton>
+                <Track.Thumb>
+                    <Thumb Style="{StaticResource ScrollBarThumbVertical}"/>
+                </Track.Thumb>
+            </Track>
+        </Grid>
+    </ControlTemplate>
+
+    <ControlTemplate x:Key="SlimHorizontalScrollBar" TargetType="ScrollBar">
+        <Grid Background="Transparent" SnapsToDevicePixels="True">
+            <Track x:Name="PART_Track">
+                <Track.DecreaseRepeatButton>
+                    <RepeatButton Style="{StaticResource ScrollBarPageButton}" Command="ScrollBar.PageLeftCommand"/>
+                </Track.DecreaseRepeatButton>
+                <Track.IncreaseRepeatButton>
+                    <RepeatButton Style="{StaticResource ScrollBarPageButton}" Command="ScrollBar.PageRightCommand"/>
+                </Track.IncreaseRepeatButton>
+                <Track.Thumb>
+                    <Thumb Style="{StaticResource ScrollBarThumbHorizontal}"/>
+                </Track.Thumb>
+            </Track>
+        </Grid>
+    </ControlTemplate>
+
+    <Style TargetType="ScrollBar">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Width" Value="8"/>
+        <Setter Property="MinWidth" Value="8"/>
+        <Setter Property="Template" Value="{StaticResource SlimVerticalScrollBar}"/>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="MinWidth" Value="0"/>
+                <Setter Property="Height" Value="8"/>
+                <Setter Property="MinHeight" Value="8"/>
+                <Setter Property="Template" Value="{StaticResource SlimHorizontalScrollBar}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The stock ScrollViewer template, unchanged in structure and in the names the control looks for (PART_ScrollContentPresenter,
+         PART_VerticalScrollBar, PART_HorizontalScrollBar) — so every ScrollViewer behaves exactly as before — except for ONE thing: the
+         little square where the two bars meet is transparent instead of a solid system-grey, which would show as a light patch in the dark theme. -->
+    <Style TargetType="ScrollViewer">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollViewer">
+                    <Grid Background="{TemplateBinding Background}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Rectangle Grid.Column="1" Grid.Row="1" Fill="Transparent"/>
+                        <ScrollContentPresenter x:Name="PART_ScrollContentPresenter" Grid.Column="0" Grid.Row="0"
+                                                Margin="{TemplateBinding Padding}"
+                                                CanContentScroll="{TemplateBinding CanContentScroll}"
+                                                CanHorizontallyScroll="False" CanVerticallyScroll="False"
+                                                Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                        <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Column="1" Grid.Row="0" Cursor="Arrow"
+                                   Minimum="0" Maximum="{TemplateBinding ScrollableHeight}" ViewportSize="{TemplateBinding ViewportHeight}"
+                                   Value="{Binding VerticalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                        <ScrollBar x:Name="PART_HorizontalScrollBar" Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Cursor="Arrow"
+                                   Minimum="0" Maximum="{TemplateBinding ScrollableWidth}" ViewportSize="{TemplateBinding ViewportWidth}"
+                                   Value="{Binding HorizontalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- =================================================================================================================
+         Lists. The GEOMETRY follows the CMS application's tables (measured from its screenshot at the same text size): a short header (4 units above and below the text) with a
+         faint rule between its columns, and tight rows (2 above and below). The COLOURS are the theme's: header, selected row, alternate row, pointer and hairlines all come from
+         the Theme* brushes (ThemeManager), so a list matches whichever theme is chosen — light, coloured or dark.
+
+         NAMED styles, applied where wanted, not implicit: re-templating every ListViewItem would break any list that isn't a GridView.
+         ListView:  Style="{StaticResource AppListView}"  ItemContainerStyle="{StaticResource AppListViewItem}"  and on its GridView
+                    ColumnHeaderContainerStyle="{StaticResource AppListHeader}".
+         ListBox:   Style="{StaticResource AppListBox}"   ItemContainerStyle="{StaticResource AppListBoxItem}".
+         ================================================================================================================= -->
+
+    <!-- The invisible strip at the right edge of a column header that is dragged to resize the column. (Its name, PART_HeaderGripper, is how the header finds it.) -->
+    <Style x:Key="AppListHeaderGripper" TargetType="Thumb">
+        <Setter Property="Cursor" Value="SizeWE"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border Background="Transparent"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="AppListHeader" TargetType="GridViewColumnHeader">
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Padding" Value="8,4,8,4"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GridViewColumnHeader">
+                    <Grid x:Name="HeaderRoot" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" Background="{DynamicResource ThemeHeaderBrush}">
+                        <ContentPresenter x:Name="HeaderContent" Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        <!-- the rule below the header, and the one between this column and the next -->
+                        <Rectangle Height="1" VerticalAlignment="Bottom" Fill="{DynamicResource ThemeLineBrush}" IsHitTestVisible="False"/>
+                        <Rectangle x:Name="ColumnRule" Width="1" HorizontalAlignment="Right" Margin="0,3,0,3" Fill="{DynamicResource ThemeLineBrush}" IsHitTestVisible="False"/>
+                        <Thumb x:Name="PART_HeaderGripper" HorizontalAlignment="Right" Width="8" Margin="0,0,-4,0" Style="{StaticResource AppListHeaderGripper}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="HeaderRoot" Property="Background" Value="{DynamicResource ThemeButtonHoverBrush}"/>
+                        </Trigger>
+                        <!-- The blank header filling the space after the last column: nothing to resize, and no rule to its right. -->
+                        <Trigger Property="Role" Value="Padding">
+                            <Setter TargetName="PART_HeaderGripper" Property="Visibility" Value="Collapsed"/>
+                            <Setter TargetName="ColumnRule" Property="Visibility" Value="Collapsed"/>
+                            <Setter TargetName="HeaderRoot" Property="Background" Value="{DynamicResource ThemeHeaderBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="AppListViewItem" TargetType="ListViewItem">
+        <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Padding" Value="8,2,8,2"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListViewItem">
+                    <Grid x:Name="Row" Background="{DynamicResource ThemePageBrush}" SnapsToDevicePixels="True">
+                        <GridViewRowPresenter Content="{TemplateBinding Content}" Columns="{TemplateBinding GridView.ColumnCollection}"
+                                              Margin="{TemplateBinding Padding}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        <Rectangle Height="1" VerticalAlignment="Bottom" Fill="{DynamicResource ThemeGridLineBrush}" IsHitTestVisible="False"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <!-- Order matters: the later a trigger, the stronger — so a selected row beats the pointer, which beats the alternate tint. -->
+                        <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource ThemeAltRowBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource ThemeHoverBrush}"/>
+                        </Trigger>
+                        <!-- Looks the same whether or not the window has focus (a selection that turns grey when you click elsewhere is easy to lose). -->
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource ThemeSelectionBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="AppListView" TargetType="ListView">
+        <Setter Property="Background" Value="{DynamicResource ThemePageBrush}"/>
+        <Setter Property="AlternationCount" Value="2"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListView">
+                    <Grid SnapsToDevicePixels="True" Background="{TemplateBinding Background}">
+                        <!-- This ScrollViewer style is what puts the column headers in the scrolling area (above the rows, scrolling sideways with them but not up and down). -->
+                        <ScrollViewer Style="{DynamicResource {x:Static GridView.GridViewScrollViewerStyleKey}}" Padding="{TemplateBinding Padding}" Focusable="False">
+                            <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        </ScrollViewer>
+                        <!-- the frame, drawn over the edges -->
+                        <Border BorderBrush="{DynamicResource ThemeInputBorderBrush}" BorderThickness="1" IsHitTestVisible="False"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="AppListBoxItem" TargetType="ListBoxItem">
+        <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Padding" Value="8,2,8,2"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Grid x:Name="Row" Background="{DynamicResource ThemePageBrush}" SnapsToDevicePixels="True">
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        <Rectangle Height="1" VerticalAlignment="Bottom" Fill="{DynamicResource ThemeGridLineBrush}" IsHitTestVisible="False"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource ThemeAltRowBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource ThemeHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource ThemeSelectionBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="AppListBox" TargetType="ListBox">
+        <Setter Property="Background" Value="{DynamicResource ThemePageBrush}"/>
+        <Setter Property="AlternationCount" Value="2"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBox">
+                    <Grid SnapsToDevicePixels="True" Background="{TemplateBinding Background}">
+                        <ScrollViewer Padding="{TemplateBinding Padding}" Focusable="False">
+                            <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        </ScrollViewer>
+                        <Border BorderBrush="{DynamicResource ThemeInputBorderBrush}" BorderThickness="1" IsHitTestVisible="False"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

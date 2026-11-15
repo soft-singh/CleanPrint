@@ -1,0 +1,29 @@
+<UserControl x:Class="CleanPrint.App.Controls.NumericUpDown"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             SnapsToDevicePixels="True">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="16"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBox x:Name="PART_TextBox" Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" Style="{StaticResource NumberTextBoxStyle}"
+                 VerticalContentAlignment="Center"
+                 TextAlignment="Left"
+                 Padding="4,0,2,0"
+                 PreviewTextInput="PART_TextBox_PreviewTextInput"
+                 TextChanged="PART_TextBox_TextChanged"
+                 LostFocus="PART_TextBox_LostFocus"
+                 KeyDown="PART_TextBox_KeyDown"/>
+
+        <RepeatButton Grid.Column="1" Grid.Row="0" Content="▲" Style="{StaticResource SpinButtonStyle}"
+                      Focusable="False" Click="UpButton_Click"/>
+        <RepeatButton Grid.Column="1" Grid.Row="1" Content="▼" Style="{StaticResource SpinButtonStyle}"
+                      Focusable="False" Click="DownButton_Click"/>
+    </Grid>
+</UserControl>

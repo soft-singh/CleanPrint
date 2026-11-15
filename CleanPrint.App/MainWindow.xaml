@@ -1,0 +1,1084 @@
+<Window x:Class="CleanPrint.App.MainWindow"
+        Icon="pack://application:,,,/Assets/CleanPrint.ico"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:CleanPrint.App.Controls"
+        xmlns:vm="clr-namespace:CleanPrint.App.ViewModels"
+        xmlns:local="clr-namespace:CleanPrint.App.Converters"
+        Title="Clean Print" Height="900" Width="1200" MinWidth="880" MinHeight="480"
+        Background="{DynamicResource AppWindowBackgroundBrush}" Foreground="{DynamicResource AppWindowForegroundBrush}"
+        BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1"
+        PreviewKeyDown="Window_PreviewKeyDown" PreviewKeyUp="Window_PreviewKeyUp" StateChanged="Window_StateChanged"
+        AllowDrop="True" DragOver="Window_DragOver" Drop="Window_Drop">
+
+    <!-- Custom window chrome: the standard title bar is replaced by our own (the Border named TitleBar
+         below), which carries the main action buttons and the status message — like Word / Acrobat —
+         so the window's real estate goes to the page instead of a title bar PLUS a toolbar row.
+         WindowChrome keeps everything the native frame gave for free: dragging by the empty part of the
+         title bar, double-click to maximize/restore, edge/corner resizing, snap, and the system menu.
+         UseAeroCaptionButtons=False because the minimize/maximize/close buttons are drawn by us.
+         CaptionHeight is kept equal to the title bar's actual height in TitleBar_SizeChanged (it grows
+         with the Toolbar scale setting), and every interactive element on the bar opts in via
+         WindowChrome.IsHitTestVisibleInChrome — otherwise the OS treats clicks there as title-bar drags. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="34" ResizeBorderThickness="6" GlassFrameThickness="0"
+                      CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <local:EnumToBooleanConverter x:Key="EnumToBoolean"/>
+        <local:InverseBooleanConverter x:Key="InverseBoolean"/>
+
+        <!-- Icon sizing note: an icon's Width/Height is the box its own TIGHT bounding box is stretched to fill
+             (Stretch=Uniform), not the pack's 24x24 grid — so a narrow icon like a chevron is drawn as tall as the
+             box, while a squarer one is drawn that wide. Sizes below are therefore chosen by how big each icon
+             actually comes out (chevrons and the first/last-page icons are small boxes on purpose). -->
+        <!-- The drawing toolbar's tool buttons: ordinary (light-faced) buttons like the combos next to them,
+             but compact and square so a row of eight doesn't dominate the toolbar. -->
+        <!-- The same size as ToolButton, for the Select / Move toggles (a toggle shows its on state with the standard checked look). -->
+        <Style x:Key="ToolToggleButton" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="ToolButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Minimize / maximize-restore / close. Full title-bar height, square corners, icons drawn as
+             vector Paths (stroked in the button's Foreground, so the close button's white-on-red hover
+             works by changing one property). -->
+        <Style x:Key="CaptionButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppWindowForegroundBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="False"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AppHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AppPressedBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CloseCaptionButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="False"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E81123"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F1707A"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ================= TITLE BAR =================
+             [ < jobs > | open image | effects | settings | print | export ]  Clean Print - status message  [ _ [] X ]
+             One button group (it carries the Toolbar scale via LayoutTransform, like the drawing toolbar and
+             the status bar's groups; the window caption buttons deliberately don't — they should stay standard
+             size). The status message sits between the buttons and the caption buttons, trims with an ellipsis
+             when long (hover shows all of it), and is also where the drawing-tool instructions appear, so a
+             verbose message can never push the buttons off the bar. -->
+        <StackPanel Grid.Row="0">
+        <Border x:Name="TitleBar" Background="{DynamicResource AppChromeBackgroundBrush}"
+                SizeChanged="TitleBar_SizeChanged">
+            <!-- The two outer columns share one width (the wider of the tools and the caption buttons), so the middle column — and the logo and title centred in it — is exactly the middle of the
+                 WINDOW, not the middle of whatever space the tools happen to leave. -->
+            <Grid Grid.IsSharedSizeScope="True">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="TitleBarSide"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="TitleBarSide"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="6,2,0,2" VerticalAlignment="Center">
+                    <StackPanel.LayoutTransform>
+                        <ScaleTransform ScaleX="{Binding UiScale}" ScaleY="{Binding UiScale}"/>
+                    </StackPanel.LayoutTransform>
+                    <Button x:Name="PreviousJobButton" Style="{StaticResource FlatIconButton}" Width="22"
+                            Click="PreviousJobButton_Click" ToolTip="Load the previous job (newer, by last-modified time)."
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolean}}">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconChevronLeft}" Width="14" Height="14"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Click="OpenJobButton_Click"
+                            ToolTip="Open Job: browse, reopen, or delete previously captured/loaded jobs."
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolean}}">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconFolderOpen}"/>
+                    </Button>
+                    <Button x:Name="NextJobButton" Style="{StaticResource FlatIconButton}" Width="22"
+                            Click="NextJobButton_Click" ToolTip="Load the next job (older, by last-modified time)."
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolean}}">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconChevronRight}" Width="14" Height="14"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Click="OpenImageButton_Click" Margin="8,0,1,0"
+                            ToolTip="Open Image(s): load one or more image files from disk as a new job. You can also drag image files onto the window."
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolean}}">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconImage}"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Click="NewBlankJobButton_Click"
+                            ToolTip="New Blank Job: start a job of plain white pages — choose the paper size, orientation and resolution. Draw shapes and text on it, and add or delete pages."
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolean}}">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconNewJob}"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Click="EffectsButton_Click"
+                            ToolTip="Effects: adjust background whitening, brightness, contrast, midtone, threshold, noise reduction, sharpen, and auto-crop sensitivity. Applied live, non-destructively. Click again to hide/show.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconTune}"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Click="SettingsButton_Click"
+                            ToolTip="Settings: appearance, job cache, effects defaults, capture/export quality, keyboard shortcuts.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconCog}"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Click="PrintButton_Click"
+                            ToolTip="Print: configure page range, size or splitting, printer, paper size, scale, and copies, then print.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPrinter}"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Click="ExportCurrentPageButton_Click"
+                            ToolTip="Export the current cleaned page as PNG/JPG, at its actual size.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconExport}"/>
+                    </Button>
+                    <!-- PRIVATE MODE, like a private browser window: while on, jobs are not saved — a job captured, a blank job or an opened image is kept outside the job cache and deleted when you
+                         leave it or close Clean Print. Purple when on; the strip under the title bar says so as well. -->
+                    <ToggleButton Style="{StaticResource FlatIconToggleButton}" Margin="8,0,1,0" IsChecked="{Binding IsPrivateMode}"
+                                  ToolTip="Private mode (like a private browser window): while on, jobs are NOT saved. Jobs you capture, create or open are kept outside the job cache and deleted when you open another job or close Clean Print.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPrivate}"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
+                    </ToggleButton>
+
+                    <!-- Editing: undo/redo step back and forward through the page's annotation edits (Ctrl+Z / Ctrl+Y); cut, copy and
+                         paste move annotations (and text) via the clipboard (Ctrl+X / Ctrl+C / Ctrl+V). Each dims when it can't apply. -->
+                    <Button Style="{StaticResource FlatIconButton}" Margin="10,0,1,0" Command="{Binding UndoCommand}"
+                            ToolTip="Undo (Ctrl+Z): step back through changes to this page's shapes and text. While drawing a polygon, removes its last point.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconUndo}"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Command="{Binding RedoCommand}" ToolTip="Redo (Ctrl+Y or Ctrl+Shift+Z)">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconRedo}"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Margin="8,0,1,0" Command="{Binding CutCommand}" ToolTip="Cut the selected shapes/text (Ctrl+X)">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconCut}"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Command="{Binding CopyCommand}" ToolTip="Copy the selected shapes/text (Ctrl+C)">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconCopy}"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Command="{Binding PasteCommand}"
+                            ToolTip="Paste (Ctrl+V): shapes and text copied from Clean Print, onto this page. Plain text from anywhere becomes a text label.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPaste}"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- Title + status. Not interactive, so it stays draggable (and double-click-to-maximize).
+                     "Working..." only shows while IsBusy. Hover shows the full message when it's trimmed. -->
+                <DockPanel Grid.Column="1" LastChildFill="True" Margin="14,0,10,0" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <!-- The logo, ahead of the title. The whole group is CENTRED in the space between the tools (left) and the minimize button (right). A DockPanel rather than a StackPanel so that a long message can still be
+                         trimmed with an ellipsis (a StackPanel never limits its children, so centred text would just be cut off at both ends). A plain image: it isn't interactive, so (like the text) it stays part of the draggable
+                         title bar. 64px source shown at 18 units so it stays sharp on high-DPI displays. -->
+                    <Image DockPanel.Dock="Left" Source="pack://application:,,,/Assets/logo-64.png" Width="18" Height="18" Margin="0,0,8,0" VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <Border DockPanel.Dock="Left" Background="{StaticResource PrivateModeBrush}" CornerRadius="9" Padding="8,1" Margin="0,0,10,0" VerticalAlignment="Center"
+                            Visibility="{Binding ShowPrivateBanner, Converter={StaticResource BoolToVisibility}}" ToolTip="{Binding PrivateBannerText}">
+                        <TextBlock Text="PRIVATE" Foreground="White" FontSize="10.5" FontWeight="Bold"/>
+                    </Border>
+                    <TextBlock DockPanel.Dock="Left" Text="Working..." Foreground="DarkOrange" FontWeight="Bold" Margin="0,0,10,0" VerticalAlignment="Center"
+                               Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}"/>
+                    <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusText}">
+                        <Run Text="Clean Print" FontWeight="SemiBold"/><Run Text="{Binding TitleStatusSuffix, Mode=OneWay}" Foreground="{DynamicResource AppSecondaryTextBrush}"/>
+                    </TextBlock>
+                </DockPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource CaptionButton}" Click="MinimizeButton_Click" ToolTip="Minimize">
+                        <Path Width="10" Height="10" Data="M0,5 H10" StrokeThickness="1"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+                    <Button Style="{StaticResource CaptionButton}" Click="MaximizeRestoreButton_Click" ToolTip="Maximize / Restore">
+                        <Grid Width="10" Height="10">
+                            <Path x:Name="MaximizeIcon" Data="M0.5,0.5 H9.5 V9.5 H0.5 Z" StrokeThickness="1"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <Path x:Name="RestoreIcon" Visibility="Collapsed" StrokeThickness="1"
+                                  Data="M2.5,2.5 V0.5 H9.5 V7.5 H7.5 M0.5,2.5 H7.5 V9.5 H0.5 Z"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </Grid>
+                    </Button>
+                    <Button Style="{StaticResource CloseCaptionButton}" Click="CloseButton_Click" ToolTip="Close">
+                        <Path Width="10" Height="10" Data="M0,0 L10,10 M10,0 L0,10" StrokeThickness="1"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- PRIVATE strip: there for as long as private mode is on, or the job on screen is a private one that will be deleted. Fixed purple with white text on every theme, so it can't be missed. -->
+        <Border Background="{StaticResource PrivateModeBrush}" Padding="12,4" Visibility="{Binding ShowPrivateBanner, Converter={StaticResource BoolToVisibility}}">
+            <DockPanel LastChildFill="True">
+                <Path DockPanel.Dock="Left" Style="{StaticResource IconPath}" Data="{StaticResource IconPrivate}" Fill="White" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <Button DockPanel.Dock="Right" Click="TurnOffPrivateButton_Click" Content="Turn private mode off" Padding="10,1" MinHeight="20" Margin="12,0,0,0" Focusable="False"
+                        Visibility="{Binding IsPrivateMode, Converter={StaticResource BoolToVisibility}}"
+                        ToolTip="Switch private mode off. Jobs from then on are saved as usual (the job on screen stays private until you leave it)."/>
+                <TextBlock Text="{Binding PrivateBannerText}" Foreground="White" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding PrivateBannerText}"/>
+            </DockPanel>
+        </Border>
+        </StackPanel>
+
+        <!-- ================= CONTENT: the one remaining toolbar row + the preview =================
+             No margin on this grid on purpose: the preview area runs flush to the window's left/right edges
+             and to the status bar below it. The toolbar row supplies its own padding instead. -->
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+        <!-- Drawing tools and their properties, in ONE row of constant height.
+             Left: the tool buttons (always there). Right: the properties of whatever is selected — Color/Thickness/Fill/Opacity for
+             a shape, or Color plus the text controls for text — which swap in place. (An earlier version added a second row
+             while text was selected; that pushed the whole page down and back up as selection changed.) The right-hand side is a
+             WrapPanel, so only on a window too narrow for the text controls does it wrap onto a second line.
+             Tools: polygons, rectangles, ellipses, circles, arcs, curves and text — one at a time, multiple per page.
+             Right-click for purpose/delete options (see code-behind for the dynamically-built context menu); the Delete key
+             removes the current selection. The instructions for whichever tool is active appear in the TITLE BAR's status
+             message, not here. The tool icons are the solid vector-* artwork from Themes/Icons.xaml. Ellipse/Circle/Arc/Curve
+             are true curves (see ShapeGeometry), not rings of straight segments, and edit through a handful of control points. -->
+        <Grid Grid.Row="0" Margin="10,6,10,6" MinHeight="28">
+            <Grid.LayoutTransform>
+                <ScaleTransform ScaleX="{Binding UiScale}" ScaleY="{Binding UiScale}"/>
+            </Grid.LayoutTransform>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button Style="{StaticResource ToolButton}" Command="{Binding NewPolygonCommand}"
+                    ToolTip="Polygon: click to place points, one at a time.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPolygon}"/>
+            </Button>
+            <Button Style="{StaticResource ToolButton}" Command="{Binding NewRectangleCommand}"
+                    ToolTip="Rectangle: click one corner, then click the opposite corner.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconRectangle}"/>
+            </Button>
+            <Button Style="{StaticResource ToolButton}" Command="{Binding NewEllipseCommand}"
+                    ToolTip="Ellipse: click one corner, then the opposite corner. Hold Ctrl for a circle; hold Shift to draw from the centre.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconEllipse}"/>
+            </Button>
+            <Button Style="{StaticResource ToolButton}" Command="{Binding NewCircleCenterCommand}"
+                    ToolTip="Circle (centre and radius): click the centre, then a point on the edge.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconCircleRadius}"/>
+            </Button>
+            <Button Style="{StaticResource ToolButton}" Command="{Binding NewCircle3Command}"
+                    ToolTip="Circle (3 points): click three points the circle passes through.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconCircle3}"/>
+            </Button>
+            <Button Style="{StaticResource ToolButton}" Command="{Binding NewArcCommand}"
+                    ToolTip="Arc (3 points): click the start, a point on the arc, then the end.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconArc}"/>
+            </Button>
+            <Button Style="{StaticResource ToolButton}" Command="{Binding NewCurveCommand}"
+                    ToolTip="Curve: click points and a smooth curve is drawn through them. Enter closes it into a loop, Finish leaves it open.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconCurve}"/>
+            </Button>
+            <Button Style="{StaticResource ToolButton}" Command="{Binding NewTextCommand}" Margin="0,0,6,0"
+                    ToolTip="Text: click where the text should go, then type. Enter = new line; Ctrl+Enter or clicking away finishes; Esc cancels. Drag the right edge of the selected text to set the width it wraps to.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconText}"/>
+            </Button>
+            <Button Style="{StaticResource ToolButton}" Click="InsertPictureButton_Click" Margin="0,0,6,0"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolean}}"
+                    ToolTip="Insert Picture: place an image file on the page (you can also paste a copied picture with Ctrl+V). Drag it to move it, drag the squares round it to resize it, and set its rotation and aspect-ratio lock in the bar at the top. It prints with the page while Include in Print is ticked.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconImagePlus}"/>
+            </Button>
+            <!-- Selecting and moving several annotations at once. Select: drag across empty space to draw a rectangle, and everything it
+                 touches is selected (Ctrl adds to the selection; Shift-drag does the same in any mode). Move: a drag picks up any annotation
+                 by its edge — no need to select it first — and moves everything selected along with it (also right-click > Move). Esc
+                 deselects, and with nothing selected leaves either mode, as does choosing a drawing tool. Without either mode, dragging
+                 empty space pans the page (the middle mouse button pans in any mode). -->
+            <ToggleButton Style="{StaticResource ToolToggleButton}" IsChecked="{Binding IsSelectMode}" Margin="10,0,4,0"
+                          ToolTip="Select: drag across empty space to select everything inside a rectangle (hold Ctrl to add to the selection; Shift-drag does this in any mode). Esc deselects, then leaves this mode.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconSelect}"/>
+            </ToggleButton>
+            <ToggleButton Style="{StaticResource ToolToggleButton}" IsChecked="{Binding IsMoveMode}" Margin="0,0,6,0"
+                          ToolTip="Move: drag any shape or text by its edge to move it without selecting it first; everything selected moves with it. Esc deselects, then leaves this mode.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconMove}"/>
+            </ToggleButton>
+            <!-- Mirror the selection left-right / top-bottom, about the middle of the selection as a group. Text stays readable: its box moves
+                 to the mirrored place and its rotation is reflected. Freeze/Hide bands are left alone. Dimmed until something is selected. -->
+            <Button Style="{StaticResource ToolButton}" Command="{Binding MirrorHorizontalCommand}" Margin="0,0,4,0"
+                    ToolTip="Mirror the selected shapes and text left-to-right, about the middle of the selection. Text stays readable.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconMirrorHorizontal}"/>
+            </Button>
+            <Button Style="{StaticResource ToolButton}" Command="{Binding MirrorVerticalCommand}" Margin="0,0,6,0"
+                    ToolTip="Mirror the selected shapes and text top-to-bottom, about the middle of the selection. Text stays readable.">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconMirrorVertical}"/>
+            </Button>
+            <Button Content="Finish" Command="{Binding FinishPolygonCommand}" Padding="8,2" Margin="0,0,6,0" VerticalAlignment="Center"
+                    Visibility="{Binding IsDrawingFreeformPolygon, Converter={StaticResource BoolToVisibility}}"/>
+            <Button Content="Close Polygon" Command="{Binding ClosePolygonCommand}" Padding="8,2" Margin="0,0,15,0" VerticalAlignment="Center"
+                    Visibility="{Binding CanCloseCurrentPolygon, Converter={StaticResource BoolToVisibility}}"
+                    ToolTip="Connects the last point back to the first, closing it into a loop. Same as pressing Enter or the right-click menu."/>
+            </StackPanel>
+
+            <WrapPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+            <TextBlock Text="Color:" Visibility="{Binding ShowShapeStyleControls, Converter={StaticResource BoolToVisibility}}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <ComboBox x:Name="StrokeColorCombo" Visibility="{Binding ShowShapeStyleControls, Converter={StaticResource BoolToVisibility}}" ItemsSource="{Binding AvailableStrokeColorOptions}" SelectedItem="{Binding CurrentPolygonColorOption}" Width="62" Height="24" Margin="0,0,12,0">
+                <!-- Padding=0 here so ALL spacing around each icon comes solely from the explicit
+                     Grid Margin below — otherwise WPF's own default ComboBoxItem padding (which
+                     isn't uniform on all sides) combines with ours unpredictably. -->
+                <ComboBox.ItemContainerStyle>
+                    <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                        <Setter Property="Padding" Value="0"/>
+                        <!-- Centers the (fixed-size) icon within the dropdown item, regardless of
+                             the dropdown's actual width/row-height — the CLOSED-state display is a
+                             totally separate ContentPresenter untouched by this, so this can't
+                             affect how the combo looks when closed. -->
+                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                        <Setter Property="VerticalContentAlignment" Value="Center"/>
+                    </Style>
+                </ComboBox.ItemContainerStyle>
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <!-- All three icon templates (color, thickness, fill) share this same
+                             35x16 size and 2px margin, so the padding around each is uniform
+                             regardless of which combo it's in. HorizontalContentAlignment=Center
+                             (set above) centers this fixed-size icon within the dropdown item,
+                             which is wider than the closed ComboBox's own content area (since the
+                             dropdown doesn't need to reserve room for the arrow) — giving even
+                             left/right margins there without needing to touch how it looks closed. -->
+                        <Grid Width="35" Height="16" Margin="2">
+                            <Border Background="{Binding Brush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1" ToolTip="{Binding Name}"/>
+                            <!-- "No Stroke" (only offered when the polygon has a fill) gets a
+                                 double-cross (X) in the same darkened shade as its own border,
+                                 rather than a plain white square. -->
+                            <Line X1="0" Y1="0" X2="35" Y2="16" Stroke="{Binding BorderBrush}" StrokeThickness="1.5"
+                                  Visibility="{Binding IsNoStroke, Converter={StaticResource BoolToVisibility}}"/>
+                            <Line X1="35" Y1="0" X2="0" Y2="16" Stroke="{Binding BorderBrush}" StrokeThickness="1.5"
+                                  Visibility="{Binding IsNoStroke, Converter={StaticResource BoolToVisibility}}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <TextBlock Text="Thickness:" Visibility="{Binding ShowShapeStyleControls, Converter={StaticResource BoolToVisibility}}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <ComboBox Visibility="{Binding ShowShapeStyleControls, Converter={StaticResource BoolToVisibility}}" ItemsSource="{Binding AvailableThicknesses}" SelectedItem="{Binding CurrentPolygonThickness}" Width="62" Height="24" Margin="0,0,12,0"
+                     >
+                <ComboBox.ItemContainerStyle>
+                    <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                        <Setter Property="Padding" Value="0"/>
+                        <!-- Centers the (fixed-size) icon within the dropdown item, regardless of
+                             the dropdown's actual width/row-height — the CLOSED-state display is a
+                             totally separate ContentPresenter untouched by this, so this can't
+                             affect how the combo looks when closed. -->
+                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                        <Setter Property="VerticalContentAlignment" Value="Center"/>
+                    </Style>
+                </ComboBox.ItemContainerStyle>
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Width="35" Height="16" Margin="2">
+                            <Line X1="0" Y1="8" X2="35" Y2="8" Stroke="{DynamicResource ThemeTextBrush}" StrokeThickness="{Binding}"
+                                  ToolTip="{Binding StringFormat={}{0}px}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <TextBlock Text="Fill:" Visibility="{Binding ShowShapeStyleControls, Converter={StaticResource BoolToVisibility}}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <ComboBox x:Name="FillColorCombo" Visibility="{Binding ShowShapeStyleControls, Converter={StaticResource BoolToVisibility}}" ItemsSource="{Binding AvailableFillColorOptions}" SelectedItem="{Binding CurrentPolygonFillColorOption}" Width="62" Height="24" Margin="0,0,10,0"
+                     
+                      ToolTip="Only shows once the polygon is closed.">
+                <ComboBox.ItemContainerStyle>
+                    <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                        <Setter Property="Padding" Value="0"/>
+                        <!-- Centers the (fixed-size) icon within the dropdown item, regardless of
+                             the dropdown's actual width/row-height — the CLOSED-state display is a
+                             totally separate ContentPresenter untouched by this, so this can't
+                             affect how the combo looks when closed. -->
+                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                        <Setter Property="VerticalContentAlignment" Value="Center"/>
+                    </Style>
+                </ComboBox.ItemContainerStyle>
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Width="35" Height="16" Margin="2">
+                            <Border Background="{Binding Brush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1" ToolTip="{Binding Name}"/>
+                            <!-- "No Fill" gets a double-cross (X) in the same darkened shade as its
+                                 own border — the standard no-color convention — instead of just
+                                 looking like a literal white fill choice. Hidden entirely from this
+                                 combo (via AvailableFillColorOptions) when the polygon already has
+                                 no stroke either, since neither is a meaningless, invisible entity. -->
+                            <Line X1="0" Y1="0" X2="35" Y2="16" Stroke="{Binding BorderBrush}" StrokeThickness="1.5"
+                                  Visibility="{Binding IsNoFill, Converter={StaticResource BoolToVisibility}}"/>
+                            <Line X1="35" Y1="0" X2="0" Y2="16" Stroke="{Binding BorderBrush}" StrokeThickness="1.5"
+                                  Visibility="{Binding IsNoFill, Converter={StaticResource BoolToVisibility}}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <TextBlock Text="Opacity %:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <controls:NumericUpDown Value="{Binding CurrentPolygonFillOpacity}" Minimum="0" Maximum="100" Increment="1" DecimalPlaces="0"
+                                     Width="54" Height="22" Margin="0,0,15,0"
+                                    
+                                     ToolTip="0-100. A shape: the opacity of its fill (only once a fill colour is chosen and the shape is closed). Text: the opacity of the whole text, fill and outline."/>
+
+            <CheckBox Content="Include in Print" IsChecked="{Binding CurrentPolygonIncludeInPrint}" VerticalAlignment="Center"
+                      Visibility="{Binding ShowIncludeInPrint, Converter={StaticResource BoolToVisibility}}"
+                      ToolTip="Draws this shape's outline/fill (or this text) directly onto the actual printed/exported page. Currently only applies to Print Whole Page / whole-page export, not split tiles."/>
+            <!-- A Hide Row/Column is an editing aid by default: the preview closes the gap, but printing does NOT
+                 unless it's explicitly switched on here. (Drawing its outline onto the page makes no sense, so
+                 for a Hide the same flag means "apply the hide to the output".) -->
+            <CheckBox Content="Hide in Print" IsChecked="{Binding CurrentPolygonIncludeInPrint}" VerticalAlignment="Center"
+                      Visibility="{Binding ShowHideInPrint, Converter={StaticResource BoolToVisibility}}"
+                      ToolTip="Remove this hidden row/column from the printed/exported page too. Off by default: the on-screen preview hides it either way, but it's only taken out of the output when this is ticked."/>
+            </WrapPanel>
+        </Grid>
+
+        <!-- Preview, plus an optional docked Effects panel to its left (EffectsDockColumn starts
+             at Width=0/collapsed; MainWindow.xaml.cs's ShowDockedPanel/HideDockedPanel/
+             ToggleEffectsDock resize it, along with EffectsDockSplitterColumn, as the Effects
+             panel is shown/hidden/docked/undocked). GridSplitter lets the docked panel's width be
+             dragged wider/narrower. -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="EffectsDockColumn" Width="0" MinWidth="0"/>
+                <ColumnDefinition x:Name="EffectsDockSplitterColumn" Width="0"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <ContentControl x:Name="EffectsDockHost" Grid.Column="0"/>
+
+            <!-- The draggable strip keeps its full 5px width — so the resize cursor and grab area are exactly as
+                 before — but is no longer painted: it used to be a 5px LightGray bar, far heavier than the 1px
+                 border on the preview's other sides. Transparent (not null) so it still receives the mouse; the
+                 preview's own 1px left border is now the only visible line on this edge. -->
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          Background="Transparent" ResizeBehavior="PreviousAndNext" ShowsPreview="True"
+                          Focusable="False" FocusVisualStyle="{x:Null}">
+                <!-- The ghost bar shown while dragging: given its own look so it doesn't inherit the (now
+                     transparent) background and become invisible mid-drag. -->
+                <GridSplitter.PreviewStyle>
+                    <Style TargetType="Control">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Control">
+                                    <Rectangle Fill="{DynamicResource AppBorderBrush}" Opacity="0.6"/>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </GridSplitter.PreviewStyle>
+            </GridSplitter>
+
+            <Border Grid.Column="2" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1"
+                    Background="{DynamicResource AppPreviewCanvasBackgroundBrush}" ClipToBounds="True">
+            <Grid x:Name="PreviewOuterGrid" ClipToBounds="True">
+                <ScrollViewer x:Name="PreviewScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                              FocusVisualStyle="{x:Null}"
+                              PreviewMouseWheel="PreviewScrollViewer_PreviewMouseWheel"
+                              PreviewMouseLeftButtonDown="PreviewScrollViewer_PreviewMouseLeftButtonDown"
+                              PreviewMouseMove="PreviewScrollViewer_PreviewMouseMove"
+                              PreviewMouseLeftButtonUp="PreviewScrollViewer_PreviewMouseLeftButtonUp"
+                              PreviewMouseRightButtonDown="PreviewScrollViewer_PreviewMouseRightButtonDown"
+                              ScrollChanged="PreviewScrollViewer_ScrollChanged">
+                <!-- The page preview is what you spend the most time scrolling, so its scrollbars are a little wider (12 units) than the app's slim 8 — a bigger target for the mouse. Based on
+                     the app-wide slim style (Themes/Controls.xaml), so the look is the same; only the thickness changes. -->
+                <ScrollViewer.Resources>
+                    <Style TargetType="ScrollBar" BasedOn="{StaticResource {x:Type ScrollBar}}">
+                        <Setter Property="Width" Value="12"/>
+                        <Setter Property="MinWidth" Value="12"/>
+                        <Style.Triggers>
+                            <Trigger Property="Orientation" Value="Horizontal">
+                                <Setter Property="Width" Value="Auto"/>
+                                <Setter Property="MinWidth" Value="0"/>
+                                <Setter Property="Height" Value="12"/>
+                                <Setter Property="MinHeight" Value="12"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </ScrollViewer.Resources>
+                <Border Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Grid>
+                        <!-- Page layer: white background + drop shadow, like a document floating on
+                             a gray canvas (MS Word style) — zoomed via its own LayoutTransform
+                             (unchanged, proven correct), now on the wrapping Border so the shadow
+                             scales together with the page instead of staying a fixed size. -->
+                        <Border Background="White">
+                            <Border.LayoutTransform>
+                                <ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/>
+                            </Border.LayoutTransform>
+                            <Border.Effect>
+                                <DropShadowEffect Color="Black" Direction="270" ShadowDepth="1.5" BlurRadius="8" Opacity="0.225"/>
+                            </Border.Effect>
+                            <Image Source="{Binding PreviewImage}"
+                                   Stretch="None"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Border>
+
+                        <!-- Overlay layer: deliberately has NO transform of its own. Every polygon's
+                             DisplayPoints/DisplayVertices are already pre-scaled by Zoom in the
+                             ViewModel (RefreshPolygonDisplay), using the same multiply/divide-by-Zoom
+                             arithmetic already proven correct for click handling — so this layer can
+                             only ever match the image's actual on-screen size, not drift from it via a
+                             second, independent transform. -->
+                        <Canvas Width="{Binding ZoomedPreviewWidth}" Height="{Binding ZoomedPreviewHeight}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center">
+
+                        <!-- One entry per polygon: its line, plus its own vertex handles (shown
+                             for the editable polygon AND for every other selected polygon in a
+                             multi-selection — see PolygonViewModel.ShowVertexHandles). -->
+                        <ItemsControl ItemsSource="{Binding Polygons}" IsHitTestVisible="False">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><Canvas/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Canvas Visibility="{Binding ShowInScrollableLayer, Converter={StaticResource BoolToVisibility}}">
+                                        <!-- Interior fill, only rendered while closed (HasFill) and
+                                             behind the outline so the outline draws on top of it. -->
+                                        <Polygon Points="{Binding DisplayPoints}" Fill="{Binding FillBrush}" Stretch="None"/>
+
+                                        <!-- Normal outline — NOT shown for Hide Row/Column: once
+                                             hidden, every vertex maps onto the same collapsed seam
+                                             (see MapToDisplay), so this would draw a degenerate
+                                             shape tracing back and forth over itself. BreakLinePoints
+                                             (below) replaces it with a plain seam line instead. -->
+                                        <Polyline Points="{Binding DisplayPoints}" Stroke="{Binding StrokeBrush}"
+                                                  StrokeThickness="{Binding StrokeThickness}" Stretch="None"
+                                                  Effect="{Binding SelectionEffect}"
+                                                  Visibility="{Binding IsNotHidden, Converter={StaticResource BoolToVisibility}}"/>
+
+                                        <!-- Hide Row/Column marker: a single dashed "broken line"
+                                             (Excel's row/column-hide convention) at the collapsed seam. -->
+                                        <Polyline Points="{Binding BreakLinePoints}" Stroke="{Binding StrokeBrush}"
+                                                  StrokeThickness="{Binding StrokeThickness}" Stretch="None"
+                                                  StrokeDashArray="{Binding StrokeDashArray}"
+                                                  Effect="{Binding SelectionEffect}"
+                                                  Visibility="{Binding IsHidden, Converter={StaticResource BoolToVisibility}}"/>
+
+                                        <!-- Purpose badge: the only visible confirmation right now that
+                                             a purpose (e.g. Freeze Row) was actually applied, since the
+                                             pinned-while-scrolling rendering itself is a follow-up increment. -->
+                                        <TextBlock Text="{Binding PurposeLabel}"
+                                                   Visibility="{Binding ShowPurposeBadge, Converter={StaticResource BoolToVisibility}}"
+                                                   Canvas.Left="{Binding DisplayVertices[0].X}"
+                                                   Canvas.Top="{Binding DisplayVertices[0].Y}"
+                                                   Margin="6,-22,0,0" Padding="4,1" FontSize="11" FontWeight="Bold"
+                                                   Background="#DD323232" Foreground="White"/>
+
+                                        <!-- Text annotation (ShapeKind.Text). Three layers, all laid out by MainViewModel.UpdateTextDisplay:
+                                             1. The BLURRED HALO: a second copy of the page image, blurred, shown only in a band round the
+                                                LETTERS themselves (not their bounding box) — so the text reads clearly over busy
+                                                graphics, and the page stays sharp everywhere else. The copy is the same size as the page and sits at its origin, so
+                                                it lines up with the real page exactly; an OPACITY MASK (BlurMask: a stack of strokes round the letters,
+                                                widest and faintest first) decides where it shows and how strongly, so the blur fades out
+                                                gradually rather than stopping at a hard edge (the Softness setting). It is stronger while the in-place editor is open, and can be switched off per text.
+                                             2. The TEXT BOX, anchored at the text's top-left and rotated about it. The letters are an opacity MASK
+                                                (the laid-out glyphs) over a fill in the text's fill colour, so changing the colour needs no re-layout;
+                                                the outline is the same glyph shapes as geometry, stroked in the stroke colour.
+                                                Size, font, spacing, wrapping and so on are all baked into the mask by TextRenderer — the same
+                                                code the print path uses, so what's seen is what prints.
+                                             3. The dashed black SELECTION RECTANGLE (a Border can't be dashed), outset 4px, identical whether
+                                                the text is merely selected or being typed into, and the WIDTH HANDLE on its right edge.
+                                             Any other kind of shape leaves all of this collapsed. -->
+                                        <Grid OpacityMask="{Binding BlurMask}" IsHitTestVisible="False"
+                                              Visibility="{Binding ShowBlur, Converter={StaticResource BoolToVisibility}}">
+                                            <Image Source="{Binding DataContext.PreviewImage, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                   Width="{Binding DataContext.ZoomedPreviewWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                   Height="{Binding DataContext.ZoomedPreviewHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                   Stretch="Fill" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                                   Effect="{Binding BackdropBlurEffect}"/>
+                                        </Grid>
+                                        <Grid Canvas.Left="{Binding DisplayVertices[0].X}" Canvas.Top="{Binding DisplayVertices[0].Y}"
+                                              Width="{Binding TextDisplayWidth}" Height="{Binding TextDisplayHeight}"
+                                              RenderTransformOrigin="0,0"
+                                              Visibility="{Binding ShowTextBox, Converter={StaticResource BoolToVisibility}}">
+                                            <Grid.RenderTransform>
+                                                <RotateTransform Angle="{Binding RotationDegrees}"/>
+                                            </Grid.RenderTransform>
+                                            <!-- The FRAME (optional): a rectangle round the text box, behind the letters, with its own line style, colour, width, fill and opacity. A negative margin pushes it
+                                                 out by its padding. A Rectangle rather than a Border because only a shape can be dashed. -->
+                                            <Rectangle Margin="{Binding FrameMargin}" IsHitTestVisible="False"
+                                                       Stroke="{Binding FrameStrokeBrush}" StrokeThickness="{Binding FrameDisplayThickness}" StrokeDashArray="{Binding FrameDashArray}"
+                                                       Fill="{Binding FrameFillBrush}" RadiusX="{Binding FrameDisplayRadius}" RadiusY="{Binding FrameDisplayRadius}"
+                                                       Opacity="{Binding FrameOpacityFraction}" SnapsToDevicePixels="False"
+                                                       Visibility="{Binding ShowFrame, Converter={StaticResource BoolToVisibility}}"/>
+                                            <!-- The text itself: its fill (the letters' colour) and outline, at the text's opacity. The
+                                                 selection rectangle and handle below are NOT faded with it. -->
+                                            <Grid Opacity="{Binding TextOpacity}" IsHitTestVisible="False">
+                                                <Border Background="{Binding TextFillBrush}" OpacityMask="{Binding TextMask}"
+                                                        Visibility="{Binding ShowText, Converter={StaticResource BoolToVisibility}}"/>
+                                                <Path Data="{Binding TextOutline}" Stroke="{Binding StrokeBrush}" StrokeThickness="{Binding TextStrokeDisplayThickness}"
+                                                      StrokeLineJoin="Round"
+                                                      Visibility="{Binding ShowTextOutline, Converter={StaticResource BoolToVisibility}}"/>
+                                            </Grid>
+                                            <Rectangle Margin="{Binding TextSelectionMargin}" Stroke="Black" StrokeThickness="1" StrokeDashArray="4 3" SnapsToDevicePixels="True"
+                                                       Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}"/>
+                                            <Rectangle Width="8" Height="8" Fill="White" Stroke="Black" StrokeThickness="1"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center" Margin="{Binding TextHandleMargin}"
+                                                       Visibility="{Binding ShowTextHandles, Converter={StaticResource BoolToVisibility}}"/>
+                                        </Grid>
+
+                                        <!-- Picture (ShapeKind.Image), laid out by MainViewModel.UpdateImageDisplay. The box is anchored at its top-left and rotated
+                                             about it, exactly like a text box. Inside it: the PICTURE (mirrored within the box if flipped, at its opacity), a grey
+                                             placeholder if its file has gone missing, the dashed SELECTION RECTANGLE on the box's own edge, and the EIGHT RESIZE
+                                             HANDLES (corners and edge midpoints) — shown only while it is the one picture being edited. The handles are drawn here
+                                             but picked up in code (MainViewModel.HitImageHandle), like the text width handle. -->
+                                        <Grid Canvas.Left="{Binding DisplayVertices[0].X}" Canvas.Top="{Binding DisplayVertices[0].Y}"
+                                              Width="{Binding ImageDisplayWidth}" Height="{Binding ImageDisplayHeight}"
+                                              RenderTransformOrigin="0,0"
+                                              Visibility="{Binding ShowImageBox, Converter={StaticResource BoolToVisibility}}">
+                                            <Grid.RenderTransform>
+                                                <RotateTransform Angle="{Binding RotationDegrees}"/>
+                                            </Grid.RenderTransform>
+                                            <Image Source="{Binding ImageSource}" Stretch="Fill" Opacity="{Binding ImageOpacity}" IsHitTestVisible="False"
+                                                   RenderTransformOrigin="0.5,0.5" RenderOptions.BitmapScalingMode="HighQuality"
+                                                   Visibility="{Binding ShowImage, Converter={StaticResource BoolToVisibility}}">
+                                                <Image.RenderTransform>
+                                                    <ScaleTransform ScaleX="{Binding ImageScaleX}" ScaleY="{Binding ImageScaleY}"/>
+                                                </Image.RenderTransform>
+                                            </Image>
+                                            <Border Background="#33808080" BorderBrush="#808080" BorderThickness="1" IsHitTestVisible="False"
+                                                    Visibility="{Binding ShowImageMissing, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock Text="Picture file not found" Foreground="#666666" TextWrapping="Wrap" TextAlignment="Center"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <Rectangle Stroke="Black" StrokeThickness="1" StrokeDashArray="4 3" SnapsToDevicePixels="True" IsHitTestVisible="False"
+                                                       Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}"/>
+                                            <Rectangle Width="8" Height="8" Fill="White" Stroke="Black" StrokeThickness="1" IsHitTestVisible="False"
+                                                       HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-4,-4,0,0"
+                                                       Visibility="{Binding ShowImageHandles, Converter={StaticResource BoolToVisibility}}"/>
+                                            <Rectangle Width="8" Height="8" Fill="White" Stroke="Black" StrokeThickness="1" IsHitTestVisible="False"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-4,0,0"
+                                                       Visibility="{Binding ShowImageHandles, Converter={StaticResource BoolToVisibility}}"/>
+                                            <Rectangle Width="8" Height="8" Fill="White" Stroke="Black" StrokeThickness="1" IsHitTestVisible="False"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-4,0"
+                                                       Visibility="{Binding ShowImageHandles, Converter={StaticResource BoolToVisibility}}"/>
+                                            <Rectangle Width="8" Height="8" Fill="White" Stroke="Black" StrokeThickness="1" IsHitTestVisible="False"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,-4,0"
+                                                       Visibility="{Binding ShowImageHandles, Converter={StaticResource BoolToVisibility}}"/>
+                                            <Rectangle Width="8" Height="8" Fill="White" Stroke="Black" StrokeThickness="1" IsHitTestVisible="False"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
+                                                       Visibility="{Binding ShowImageHandles, Converter={StaticResource BoolToVisibility}}"/>
+                                            <Rectangle Width="8" Height="8" Fill="White" Stroke="Black" StrokeThickness="1" IsHitTestVisible="False"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-4"
+                                                       Visibility="{Binding ShowImageHandles, Converter={StaticResource BoolToVisibility}}"/>
+                                            <Rectangle Width="8" Height="8" Fill="White" Stroke="Black" StrokeThickness="1" IsHitTestVisible="False"
+                                                       HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="-4,0,0,-4"
+                                                       Visibility="{Binding ShowImageHandles, Converter={StaticResource BoolToVisibility}}"/>
+                                            <Rectangle Width="8" Height="8" Fill="White" Stroke="Black" StrokeThickness="1" IsHitTestVisible="False"
+                                                       HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-4,0,0,0"
+                                                       Visibility="{Binding ShowImageHandles, Converter={StaticResource BoolToVisibility}}"/>
+                                        </Grid>
+
+                                        <ItemsControl ItemsSource="{Binding DisplayVertices}"
+                                                      Visibility="{Binding ShowVertexHandles, Converter={StaticResource BoolToVisibility}}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><Canvas/></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemContainerStyle>
+                                                <Style TargetType="ContentPresenter">
+                                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                                    <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                                </Style>
+                                            </ItemsControl.ItemContainerStyle>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Ellipse Width="12" Height="12" Fill="Orange" Stroke="White" StrokeThickness="1" Margin="-6,-6,0,0"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Canvas>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Transparent hit-test surface for polygon editing — only intercepts
+                             clicks while a polygon is actively editable, so normal panning (see
+                             code-behind) works exactly as before the rest of the time. Extends
+                             well beyond the image's own bounds (FreezeCanvasPaddingImageSpace) so
+                             points placed outside the image — a legitimate, intentional use case —
+                             stay clickable and draggable rather than becoming permanently
+                             un-editable once they're outside the (previously image-sized-only)
+                             hit-test area. -->
+                        <Canvas x:Name="FreezeEditCanvas" Background="Transparent" FocusVisualStyle="{x:Null}"
+                                Canvas.Left="{Binding FreezeCanvasNegativePadding}"
+                                Canvas.Top="{Binding FreezeCanvasNegativePadding}"
+                                Width="{Binding FreezeEditCanvasWidth}" Height="{Binding FreezeEditCanvasHeight}"
+                                IsHitTestVisible="{Binding IsEditingPolygon}"
+                                PreviewMouseLeftButtonDown="FreezeEditCanvas_PreviewMouseLeftButtonDown"
+                                PreviewMouseMove="FreezeEditCanvas_PreviewMouseMove"
+                                PreviewMouseLeftButtonUp="FreezeEditCanvas_PreviewMouseLeftButtonUp"/>
+                        </Canvas>
+                    </Grid>
+                </Border>
+            </ScrollViewer>
+
+                <!-- Freeze Row/Column pinned overlay: one per polygon with Purpose=FreezeRow or
+                     FreezeColumn, showing a clipped copy of the SAME image on top of the normal
+                     scrollable content. Deliberately outside the ScrollViewer (so it never scrolls
+                     in its pinned direction), sized using explicit Width/Height instead of a
+                     LayoutTransform (so Clip — which applies in the element's own pre-transform
+                     local space — unambiguously lines up with FreezeClipGeometry, which is already
+                     zoom-scaled), and repositioned by code-behind (UpdateFrozenOverlayPosition) via
+                     RenderTransform — Row tracks horizontal scroll but stays vertically pinned;
+                     Column tracks vertical scroll but stays horizontally pinned. -->
+                <ItemsControl ItemsSource="{Binding Polygons}" IsHitTestVisible="True">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><Canvas/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <!-- IsHitTestVisible=True here (unlike the scrollable layer's overlay)
+                                 so the frozen band itself can be right/left-clicked once it's the
+                                 only visible representation of the polygon — Visibility=Collapsed
+                                 (the normal case, before freezing) already makes it non-hit-testable
+                                 regardless, so this doesn't affect anything else on the page. -->
+                            <Border Visibility="{Binding IsFrozen, Converter={StaticResource BoolToVisibility}}"
+                                    Clip="{Binding FreezeClipGeometry}" Background="White"
+                                    MouseLeftButtonDown="FrozenOverlay_MouseLeftButtonDown"
+                                    MouseRightButtonDown="FrozenOverlay_MouseRightButtonDown">
+                                <Border.RenderTransform>
+                                    <TranslateTransform X="{Binding FrozenOverlayOffsetX}" Y="{Binding FrozenOverlayOffsetY}"/>
+                                </Border.RenderTransform>
+                                <Grid>
+                                    <Image Source="{Binding DataContext.PreviewImage, RelativeSource={RelativeSource AncestorType=Window}}"
+                                           Stretch="Fill"
+                                           Width="{Binding DataContext.ZoomedPreviewWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                           Height="{Binding DataContext.ZoomedPreviewHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                                    <!-- Interior fill, same as the scrollable layer's — added here
+                                         because a filled Freeze Row/Column polygon previously
+                                         showed no fill at all once frozen: this overlay only ever
+                                         rendered the page image + outline, since it was built
+                                         before the fill feature existed and never got revisited. -->
+                                    <Polygon Points="{Binding DisplayPoints}" Fill="{Binding FillBrush}" Stretch="None"/>
+
+                                    <!-- The polygon's own outline, reusing the same zoom-scaled
+                                         DisplayPoints/style as the editable outline — so the
+                                         boundary visibly travels WITH the frozen band instead of
+                                         scrolling away from it while the image stays pinned. -->
+                                    <Polyline Points="{Binding DisplayPoints}" Stroke="{Binding StrokeBrush}"
+                                              StrokeThickness="{Binding StrokeThickness}" Stretch="None"
+                                              Effect="{Binding SelectionEffect}"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ===== Text options: a FLOATING bar over the top of the preview, shown while a text annotation is being placed or
+             edited. It is not part of the layout — the preview grid above is in the same cell and does not know it exists — so
+             showing or hiding it moves nothing: the page stays exactly where it is on the screen, however many lines the
+             controls wrap onto. (An earlier version put them in the toolbar row, which grew and shrank as selection changed
+             and pushed the page up and down with it.) The cost is that it covers the top strip of the preview while it is up;
+             scroll the page, or click away, to get at what's underneath. Its left edge follows the docked Effects panel
+             (MainWindow.UpdateTextOptionsBarMargin). Colour, outline, outline thickness and opacity are in the main toolbar
+             (Color / Thickness / Fill / Opacity act on text just as they do on shapes); this bar has the text-only settings.
+             Sizes are in points, like a word processor. ===== -->
+        <Border x:Name="TextOptionsBar" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                Background="{DynamicResource AppChromeBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="10,4,10,3"
+                Visibility="{Binding ShowTextOptions, Converter={StaticResource BoolToVisibility}}">
+            <WrapPanel>
+                <WrapPanel.LayoutTransform>
+                    <ScaleTransform ScaleX="{Binding UiScale}" ScaleY="{Binding UiScale}"/>
+                </WrapPanel.LayoutTransform>
+            <ComboBox ItemsSource="{x:Static vm:MainViewModel.TextFontFamilies}" SelectedItem="{Binding CurrentTextFontFamily}"
+                      Width="150" Height="24" Margin="0,1,6,1" VerticalContentAlignment="Center"
+                      ToolTip="Font. Applies to the selected text, and is what new text will use."/>
+            <controls:NumericUpDown Value="{Binding CurrentTextFontSize}" Minimum="1" Maximum="600" Increment="1" DecimalPlaces="1"
+                                     Width="56" Height="22" Margin="0,1,8,1"
+                                     ToolTip="Font size in points — the same points as in Word, so 12 here is the size Word's 12 is at 100% zoom."/>
+            <ToggleButton IsChecked="{Binding CurrentTextBold}" Width="26" Padding="0" Height="24" Margin="0,1,2,1" Focusable="False" ToolTip="Bold">
+                <TextBlock Text="B" FontWeight="Bold"/>
+            </ToggleButton>
+            <ToggleButton IsChecked="{Binding CurrentTextItalic}" Width="26" Padding="0" Height="24" Margin="0,1,2,1" Focusable="False" ToolTip="Italic">
+                <TextBlock Text="I" FontStyle="Italic" FontFamily="Times New Roman"/>
+            </ToggleButton>
+            <ToggleButton IsChecked="{Binding CurrentTextUnderline}" Width="26" Padding="0" Height="24" Margin="0,1,10,1" Focusable="False" ToolTip="Underline">
+                <TextBlock Text="U" TextDecorations="Underline"/>
+            </ToggleButton>
+                <RadioButton GroupName="TextAlignment" Style="{StaticResource {x:Type ToggleButton}}" Width="26" Height="24" Margin="0,1,2,1" Focusable="False"
+                             IsChecked="{Binding CurrentTextAlignment, Converter={StaticResource EnumToBoolean}, ConverterParameter=Left}" ToolTip="Align left">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconAlignLeft}" Width="14" Height="14"/>
+                </RadioButton>
+                <RadioButton GroupName="TextAlignment" Style="{StaticResource {x:Type ToggleButton}}" Width="26" Height="24" Margin="0,1,2,1" Focusable="False"
+                             IsChecked="{Binding CurrentTextAlignment, Converter={StaticResource EnumToBoolean}, ConverterParameter=Center}" ToolTip="Align centre">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconAlignCenter}" Width="14" Height="14"/>
+                </RadioButton>
+                <RadioButton GroupName="TextAlignment" Style="{StaticResource {x:Type ToggleButton}}" Width="26" Height="24" Margin="0,1,2,1" Focusable="False"
+                             IsChecked="{Binding CurrentTextAlignment, Converter={StaticResource EnumToBoolean}, ConverterParameter=Right}" ToolTip="Align right">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconAlignRight}" Width="14" Height="14"/>
+                </RadioButton>
+                <RadioButton GroupName="TextAlignment" Style="{StaticResource {x:Type ToggleButton}}" Width="26" Height="24" Margin="0,1,14,1" Focusable="False"
+                             IsChecked="{Binding CurrentTextAlignment, Converter={StaticResource EnumToBoolean}, ConverterParameter=Justify}" ToolTip="Justify: the lines of a wrapped paragraph are spread to the full width of the box (set a Width); the last line of each paragraph stays left-aligned.">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconAlignJustify}" Width="14" Height="14"/>
+                </RadioButton>
+
+            <TextBlock Text="Rotate:" VerticalAlignment="Center" Margin="0,1,4,1"/>
+            <controls:NumericUpDown Value="{Binding CurrentTextRotation}" Minimum="-360" Maximum="360" Increment="5" DecimalPlaces="0"
+                                     Width="54" Height="22" Margin="0,1,12,1"
+                                     ToolTip="Rotation in degrees, clockwise, about the top-left corner of the text."/>
+            <TextBlock Text="Spacing:" VerticalAlignment="Center" Margin="0,1,4,1"/>
+            <controls:NumericUpDown Value="{Binding CurrentTextCharacterSpacing}" Minimum="-10" Maximum="100" Increment="0.5" DecimalPlaces="1"
+                                     Width="54" Height="22" Margin="0,1,12,1"
+                                     ToolTip="Extra space after every character, in points (negative tightens). Not shown while typing; applies once you finish."/>
+            <TextBlock Text="Line:" VerticalAlignment="Center" Margin="0,1,4,1"/>
+            <controls:NumericUpDown Value="{Binding CurrentTextLineSpacing}" Minimum="0.5" Maximum="5" Increment="0.1" DecimalPlaces="2"
+                                     Width="56" Height="22" Margin="0,1,12,1"
+                                     ToolTip="Line height as a multiple of the font's normal line height (1 = single, 1.5, 2 = double...)."/>
+            <TextBlock Text="Width:" VerticalAlignment="Center" Margin="0,1,4,1"/>
+            <controls:NumericUpDown Value="{Binding CurrentTextBoxWidth}" Minimum="0" Maximum="5000" Increment="10" DecimalPlaces="0"
+                                     Width="58" Height="22" Margin="0,1,14,1"
+                                     ToolTip="Width of the text box in points; long text wraps to the next line. 0 = automatic (no wrapping). You can also drag the right edge of the selected text."/>
+
+            <CheckBox IsChecked="{Binding CurrentTextBlurBackground}" Content="Blur behind" VerticalAlignment="Center" Margin="0,1,6,1"
+                      ToolTip="Blur the page behind the text, so the text reads clearly over graphics. Also applies when the text is printed."/>
+            <TextBlock Text="Area:" VerticalAlignment="Center" Margin="0,1,4,1"/>
+            <controls:NumericUpDown Value="{Binding CurrentTextBlurArea}" Minimum="0" Maximum="200" Increment="1" DecimalPlaces="0"
+                                     Width="52" Height="22" Margin="0,1,10,1"
+                                     IsEnabled="{Binding CurrentTextBlurBackground}"
+                                     ToolTip="How far, in points, the blurred area extends beyond the text on every side."/>
+            <TextBlock Text="Softness:" VerticalAlignment="Center" Margin="0,1,4,1"/>
+            <controls:NumericUpDown Value="{Binding CurrentTextBlurSoftness}" Minimum="0" Maximum="100" Increment="5" DecimalPlaces="0"
+                                     Width="52" Height="22" Margin="0,1,14,1"
+                                     IsEnabled="{Binding CurrentTextBlurBackground}"
+                                     ToolTip="How gradually the blur fades out towards the edge of its area, 0-100%. 0 is a hard edge; 100 fades across the whole area, so the blur is full strength only right beside the text."/>
+
+            <!-- FRAME: a rectangle round the text, behind the letters. Everything but the checkbox is greyed until the frame is switched on. Each label sits in a group with its
+                 control, so when the bar wraps onto a second line a label is never left behind on the line above its box. -->
+            <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1,0,0,0" Margin="2,1,10,1" Width="1"/>
+            <CheckBox IsChecked="{Binding CurrentFrameVisible}" Content="Frame" VerticalAlignment="Center" Margin="0,1,10,1"
+                      ToolTip="Draw a rectangle round the text: its own line style, colour, width, fill and opacity. Also applies when the text is printed."/>
+            <StackPanel Orientation="Horizontal" Margin="0,1,10,1" IsEnabled="{Binding CurrentFrameVisible}">
+                <TextBlock Text="Line:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ComboBox ItemsSource="{Binding FrameLineStyleOptions}" SelectedItem="{Binding CurrentFrameLineStyleOption}" Width="92" Height="22"
+                          ToolTip="Solid, dashed, dotted or dash-dot line.">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Width="62" Height="16" Margin="2" ToolTip="{Binding Name}">
+                                <Line X1="0" X2="62" Y1="8" Y2="8" StrokeThickness="2" StrokeDashArray="{Binding DashArray}" Stroke="{DynamicResource AppWindowForegroundBrush}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,1,10,1" IsEnabled="{Binding CurrentFrameVisible}">
+                <TextBlock Text="Colour:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ComboBox ItemsSource="{Binding FrameStrokeOptions}" SelectedItem="{Binding CurrentFrameStrokeOption}" Width="62" Height="22" ToolTip="The frame's line colour.">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Width="35" Height="16" Margin="2" Background="{Binding Brush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1" ToolTip="{Binding Name}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,1,10,1" IsEnabled="{Binding CurrentFrameVisible}">
+                <TextBlock Text="Width:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <controls:NumericUpDown Value="{Binding CurrentFrameThickness}" Minimum="0" Maximum="30" Increment="0.5" DecimalPlaces="1" Width="54" Height="22"
+                                         ToolTip="The frame line's width, in page units. 0 = no line (just the fill)."/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,1,10,1" IsEnabled="{Binding CurrentFrameVisible}">
+                <TextBlock Text="Fill:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ComboBox ItemsSource="{Binding FrameFillOptions}" SelectedItem="{Binding CurrentFrameFillOption}" Width="62" Height="22" ToolTip="The frame's interior colour, or No Fill.">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Width="35" Height="16" Margin="2" ToolTip="{Binding Name}">
+                                <Border Background="{Binding Brush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1"/>
+                                <Line X1="0" Y1="0" X2="35" Y2="16" Stroke="{Binding BorderBrush}" StrokeThickness="1.5" Visibility="{Binding IsNoFill, Converter={StaticResource BoolToVisibility}}"/>
+                                <Line X1="35" Y1="0" X2="0" Y2="16" Stroke="{Binding BorderBrush}" StrokeThickness="1.5" Visibility="{Binding IsNoFill, Converter={StaticResource BoolToVisibility}}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,1,10,1" IsEnabled="{Binding CurrentFrameVisible}">
+                <TextBlock Text="Opacity %:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <controls:NumericUpDown Value="{Binding CurrentFrameOpacity}" Minimum="0" Maximum="100" Increment="5" DecimalPlaces="0" Width="52" Height="22"
+                                         ToolTip="Opacity of the whole frame (line and fill together), 0-100%. Separate from the text's own opacity."/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,1,10,1" IsEnabled="{Binding CurrentFrameVisible}">
+                <TextBlock Text="Padding:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <controls:NumericUpDown Value="{Binding CurrentFramePadding}" Minimum="0" Maximum="100" Increment="1" DecimalPlaces="0" Width="52" Height="22"
+                                         ToolTip="Space, in points, between the text and the frame's line."/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,1,0,1" IsEnabled="{Binding CurrentFrameVisible}">
+                <TextBlock Text="Corners:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <controls:NumericUpDown Value="{Binding CurrentFrameRadius}" Minimum="0" Maximum="100" Increment="1" DecimalPlaces="0" Width="52" Height="22"
+                                         ToolTip="Corner radius, in points (0 = square corners)."/>
+            </StackPanel>
+            </WrapPanel>
+        </Border>
+
+        <!-- ===== PICTURE OPTIONS BAR: the same floating strip as the text one (and for the same reason: it appears over the top of the
+             preview rather than pushing the page down), shown while a picture is the annotation being edited. Only one of the two is ever
+             up, since the selection is a picture or a text. Opacity and Include in Print are in the main toolbar (they act on pictures just
+             as they do on text); this bar has what is only a picture's. Mirror in the toolbar flips the picture itself. ===== -->
+        <Border x:Name="ImageOptionsBar" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                Background="{DynamicResource AppChromeBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="10,4,10,3"
+                Visibility="{Binding ShowImageOptions, Converter={StaticResource BoolToVisibility}}">
+            <WrapPanel>
+                <WrapPanel.LayoutTransform>
+                    <ScaleTransform ScaleX="{Binding UiScale}" ScaleY="{Binding UiScale}"/>
+                </WrapPanel.LayoutTransform>
+                <TextBlock Text="Picture" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,1,14,1"/>
+                <CheckBox Content="Keep aspect ratio" IsChecked="{Binding KeepImageAspect}" VerticalAlignment="Center" Margin="0,1,10,1"
+                          ToolTip="On: dragging a handle resizes the picture in proportion. Off: each handle stretches it freely."/>
+                <Button Content="Original proportions" Click="ResetImageProportionsButton_Click" Padding="8,2" Margin="0,1,16,1"
+                        ToolTip="Give the picture back the proportions of its file, keeping its width — to undo stretching."/>
+                <TextBlock Text="Rotate:" VerticalAlignment="Center" Margin="0,1,4,1"/>
+                <controls:NumericUpDown Value="{Binding CurrentImageRotation}" Minimum="-360" Maximum="360" Increment="5" DecimalPlaces="0"
+                                         Width="54" Height="22" Margin="0,1,14,1"
+                                         ToolTip="Rotation in degrees, clockwise, about the centre of the picture."/>
+                <TextBlock Text="Opacity and Include in Print are in the toolbar." Foreground="{DynamicResource AppSecondaryTextBrush}" VerticalAlignment="Center" Margin="0,1,0,1"/>
+            </WrapPanel>
+        </Border>
+
+        </Grid>
+
+        <!-- ================= STATUS BAR =================
+             [ job-cache warning ]    [ |< < [ 1 ] of 3 > >| ]    [ before/after  rotate L  rotate R  fit W  fit H    100%  - slider + ]
+             Equal-width star columns on both sides keep the page navigation truly centered however wide the
+             warning or the right-hand group gets. The zoom controls are the last thing on the right.
+             Vertical centering: the grid has a MinHeight and every group is VerticalAlignment=Center inside it,
+             so nothing can end up hanging off the bottom edge when the groups differ in height (or when the
+             Toolbar scale makes one of them taller). Both groups carry the Toolbar scale (UiScale). The
+             job-cache warning (see MainViewModel.JobCacheWarning) only shows while an enabled limit has been
+             reached; clicking it opens the Open Job dialog. -->
+        <Border Grid.Row="2" Background="{DynamicResource AppChromeBackgroundBrush}"
+                BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0">
+            <Grid Margin="10,0" MinHeight="34">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="{Binding JobCacheWarning}" Foreground="DarkOrange" FontWeight="Bold"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Cursor="Hand"
+                           ToolTip="Click to open the Job browser and manage the job cache."
+                           MouseLeftButtonDown="JobCacheWarning_MouseLeftButtonDown"
+                           Visibility="{Binding HasJobCacheWarning, Converter={StaticResource BoolToVisibility}}"/>
+
+                <!-- Page navigation: the same shape as the Print dialog's preview navigation — first,
+                     previous, a page box, "of N", next, last. The box reads 1 even with nothing loaded
+                     (every job has at least one page), and commits on Enter / losing focus rather than
+                     per keystroke, since each commit loads a page. -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel.LayoutTransform>
+                        <ScaleTransform ScaleX="{Binding UiScale}" ScaleY="{Binding UiScale}"/>
+                    </StackPanel.LayoutTransform>
+                    <Button Style="{StaticResource FlatIconButton}" Width="26" Height="24"
+                            Command="{Binding FirstPageCommand}" ToolTip="First page">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPageFirst}" Width="12" Height="12"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Width="26" Height="24"
+                            Command="{Binding PreviousPageCommand}" ToolTip="Previous page">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconChevronLeft}" Width="12" Height="12"/>
+                    </Button>
+                    <TextBox Text="{Binding CurrentPageNumber, UpdateSourceTrigger=LostFocus}" Width="40" Height="22" Margin="6,0,0,0"
+                             TextAlignment="Center" VerticalContentAlignment="Center" VerticalAlignment="Center" ToolTip="Type a page number and press Enter"
+                             PreviewKeyDown="PageNumberTextBox_PreviewKeyDown"/>
+                    <TextBlock VerticalAlignment="Center" Margin="6,0,6,0">
+                        <Run Text="of"/><Run Text=" "/><Run Text="{Binding PageCountDisplay, Mode=OneWay}"/>
+                    </TextBlock>
+                    <Button Style="{StaticResource FlatIconButton}" Width="26" Height="24"
+                            Command="{Binding NextPageCommand}" ToolTip="Next page">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconChevronRight}" Width="12" Height="12"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Width="26" Height="24"
+                            Command="{Binding LastPageCommand}" ToolTip="Last page">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPageLast}" Width="12" Height="12"/>
+                    </Button>
+                    <!-- Only a blank job's pages can be added to or removed (see MainViewModel.IsBlankJob). -->
+                    <Button x:Name="PageMenuButton" Style="{StaticResource FlatIconButton}" Width="26" Height="24" Margin="8,0,0,0"
+                            Click="PageMenuButton_Click" Visibility="{Binding IsBlankJob, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="Pages: add a page at the end, insert one after this page, or delete this page.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPageMenu}" Width="14" Height="14"/>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <StackPanel.LayoutTransform>
+                        <ScaleTransform ScaleX="{Binding UiScale}" ScaleY="{Binding UiScale}"/>
+                    </StackPanel.LayoutTransform>
+                    <Button Style="{StaticResource FlatIconButton}" Width="26" Height="24" Command="{Binding ToggleBeforeAfterCommand}"
+                            ToolTip="Before / After: toggle between the original captured page and the cleaned/effects-applied version.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconCompare}" Width="15" Height="15"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Width="26" Height="24" Click="RotateCounterclockwiseButton_Click"
+                            ToolTip="Rotate page counterclockwise. Clears any polygons on this page, since their positions wouldn't line up with the rotated image.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconRotateLeft}" Width="15" Height="15"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Width="26" Height="24" Click="RotateClockwiseButton_Click"
+                            ToolTip="Rotate page clockwise. Clears any polygons on this page, since their positions wouldn't line up with the rotated image.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconRotateRight}" Width="15" Height="15"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Width="26" Height="24" Margin="8,0,1,0" Click="FitWidthButton_Click"
+                            ToolTip="Fit Width: zoom so the page's full width fills the preview area.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconFitWidth}" Width="15" Height="15"/>
+                    </Button>
+                    <Button Style="{StaticResource FlatIconButton}" Width="26" Height="24" Click="FitHeightButton_Click"
+                            ToolTip="Fit Height: zoom so the page's full height fills the preview area.">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconFitHeight}" Width="15" Height="15"/>
+                    </Button>
+                    <TextBlock Text="{Binding Zoom, StringFormat={}{0:P0}}" VerticalAlignment="Center" MinWidth="44" TextAlignment="Right" Margin="16,0,6,0"/>
+                    <Button Style="{StaticResource FlatIconButton}" Width="26" Height="24" Click="ZoomOutButton_Click" ToolTip="Zoom out">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconZoomOut}" Width="15" Height="15"/>
+                    </Button>
+                    <Slider Minimum="0.1" Maximum="4" Width="120" Value="{Binding Zoom}" VerticalAlignment="Center" Margin="2,0"/>
+                    <Button Style="{StaticResource FlatIconButton}" Width="26" Height="24" Click="ZoomInButton_Click" ToolTip="Zoom in">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource IconZoomIn}" Width="15" Height="15"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

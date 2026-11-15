@@ -1,0 +1,361 @@
+<Window x:Class="CleanPrint.App.SettingsDialog"
+        Icon="pack://application:,,,/Assets/CleanPrint.ico"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="clr-namespace:CleanPrint.App.Services"
+        svc:UiScaling.Mode="Snapshot"
+        xmlns:controls="clr-namespace:CleanPrint.App.Controls"
+        xmlns:vm="clr-namespace:CleanPrint.App.ViewModels"
+        Title="Settings" Height="640" Width="620" MinWidth="520" MinHeight="420" WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppWindowBackgroundBrush}" Foreground="{DynamicResource AppWindowForegroundBrush}"
+        ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <!-- Shared look for every setting inside a group: a semibold name, a gray explanation under it,
+             then the control. The GroupBox header names the CATEGORY, so these only name the setting. -->
+        <Style x:Key="SettingTitle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+        </Style>
+        <Style x:Key="SettingDescription" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppSecondaryTextBrush}"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style x:Key="SettingGroup" TargetType="GroupBox" BasedOn="{StaticResource {x:Type GroupBox}}">
+            <Setter Property="Margin" Value="0,0,0,12"/>
+            <Setter Property="Padding" Value="6,4,6,6"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TabControl Grid.Row="0">
+
+            <!-- ======================= GENERAL ======================= -->
+            <TabItem Header="General">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="12,12,12,0">
+
+                    <GroupBox Header="Appearance" Style="{StaticResource SettingGroup}">
+                        <StackPanel>
+                            <TextBlock Text="Theme" Style="{StaticResource SettingTitle}"/>
+                            <TextBlock Style="{StaticResource SettingDescription}"
+                                       Text="The colours of the whole program: windows, panels, buttons, boxes, lists and menus. Dark and Darker are neutral dark greys in the manner of Photoshop; Classic is the grey look CleanPrint has always had; the rest are light themes with a coloured accent. Applied immediately."/>
+                            <ComboBox ItemsSource="{x:Static vm:MainViewModel.ThemeOptions}" SelectedItem="{Binding SelectedThemeOption}"
+                                      Width="430" Height="28" HorizontalAlignment="Left" Margin="0,0,0,14">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <!-- the theme in miniature: its window colour, with a dab of its accent -->
+                                            <Grid Width="26" Height="16" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                <Border Background="{Binding WindowBrush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1"/>
+                                                <Border Background="{Binding AccentBrush}" Width="10" Height="6" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,2,2"/>
+                                            </Grid>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Width="70" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Description}" Foreground="{DynamicResource AppSecondaryTextBrush}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Text="Icon colour" Style="{StaticResource SettingTitle}"/>
+                            <TextBlock Style="{StaticResource SettingDescription}"
+                                       Text="The icons on the title bar, status bar and drawing toolbar use a variation of the theme's own colour (light grey on the dark themes). Slide to make them darker or lighter. Applied immediately."/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="Darker" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource AppSecondaryTextBrush}"/>
+                                <Slider Minimum="-100" Maximum="100" Value="{Binding IconLightness}" Width="220" VerticalAlignment="Center" TickFrequency="25" SmallChange="5" LargeChange="25"/>
+                                <TextBlock Text="Lighter" VerticalAlignment="Center" Margin="8,0,12,0" Foreground="{DynamicResource AppSecondaryTextBrush}"/>
+                                <controls:NumericUpDown Value="{Binding IconLightness}" Minimum="-100" Maximum="100" Increment="5" DecimalPlaces="0" Width="58" Height="22" Margin="0,0,8,0"/>
+                                <Button Content="Reset" Click="ResetIconLightnessButton_Click" Padding="8,2" ToolTip="Back to the theme's own icon colour."/>
+                            </StackPanel>
+                            <!-- a few of the real icons, so the effect of the slider can be seen without leaving the dialog -->
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,14">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPrinter}" Width="20" Height="20" Margin="0,0,10,0"/>
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconCog}" Width="20" Height="20" Margin="0,0,10,0"/>
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconTune}" Width="20" Height="20" Margin="0,0,10,0"/>
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconExport}" Width="20" Height="20" Margin="0,0,10,0"/>
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPrivate}" Width="20" Height="20"/>
+                            </StackPanel>
+
+                            <TextBlock Text="Toolbar scale" Style="{StaticResource SettingTitle}"/>
+                            <TextBlock Style="{StaticResource SettingDescription}"
+                                       Text="A manual size adjustment for the toolbars: the drawing toolbar and the buttons on the title bar and status bar. Independent of Windows' own display scaling, for whenever that makes them feel larger or smaller than you'd like — toolbars are often best a little smaller than everything else. 1.00 = 100% (no change). Does not affect the page preview or the window's minimize/maximize/close buttons."/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                <controls:NumericUpDown Value="{Binding UiScale}" Minimum="0.6" Maximum="1.5" Increment="0.05" DecimalPlaces="2"
+                                                         Width="60" Height="22" Margin="0,0,10,0"/>
+                                <Slider Minimum="0.6" Maximum="1.5" Value="{Binding UiScale}" Width="180" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <TextBlock Text="Dialog &amp; panel scale" Style="{StaticResource SettingTitle}"/>
+                            <TextBlock Style="{StaticResource SettingDescription}"
+                                       Text="The same kind of adjustment for everything that isn't a toolbar: the Effects panel and the Print, Settings, Open Job and other dialogs. The Print dialog and Effects panel follow it immediately; other dialogs pick it up the next time they open."/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <controls:NumericUpDown Value="{Binding DialogScale}" Minimum="0.75" Maximum="1.5" Increment="0.05" DecimalPlaces="2"
+                                                         Width="60" Height="22" Margin="0,0,10,0"/>
+                                <Slider Minimum="0.75" Maximum="1.5" Value="{Binding DialogScale}" Width="180" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="Viewing &amp; editing" Style="{StaticResource SettingGroup}">
+                        <StackPanel>
+                            <TextBlock Text="Zoom scroll precision" Style="{StaticResource SettingTitle}"/>
+                            <TextBlock Style="{StaticResource SettingDescription}"
+                                       Text="How much Ctrl+scroll-wheel (and the zoom in/out buttons) change zoom per step. Lower is finer/slower, higher is coarser/faster."/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                <controls:NumericUpDown Value="{Binding ZoomWheelSensitivity}" Minimum="1.01" Maximum="2.0" Increment="0.01" DecimalPlaces="2"
+                                                         Width="60" Height="22" Margin="0,0,10,0"/>
+                                <Slider Minimum="1.01" Maximum="2.0" Value="{Binding ZoomWheelSensitivity}" Width="180" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <TextBlock Text="Effects response delay" Style="{StaticResource SettingTitle}"/>
+                            <TextBlock Style="{StaticResource SettingDescription}"
+                                       Text="How long to wait after moving a slider (brightness, contrast, etc.) before actually reprocessing the image. Lower reflects changes sooner but reprocesses more often while dragging."/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <controls:NumericUpDown Value="{Binding EffectsDebounceMilliseconds}" Minimum="50" Maximum="2000" Increment="50" DecimalPlaces="0"
+                                                         Width="60" Height="22" Margin="0,0,10,0"/>
+                                <TextBlock Text="ms" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <Slider Minimum="50" Maximum="2000" Value="{Binding EffectsDebounceMilliseconds}" Width="180" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="New jobs" Style="{StaticResource SettingGroup}">
+                        <StackPanel>
+                            <TextBlock Text="Default effects preset" Style="{StaticResource SettingTitle}"/>
+                            <TextBlock Style="{StaticResource SettingDescription}"
+                                       Text="Applied automatically whenever a new job is loaded (captured print, or Open Image(s)/Open Job). If 'None' is selected, no initial effect is applied at all — the page loads as captured, with background whitening and every other effect off."/>
+                            <ComboBox x:Name="DefaultPresetComboBox" Width="220" HorizontalAlignment="Left"
+                                      SelectionChanged="DefaultPresetComboBox_SelectionChanged" Margin="0,0,0,4"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="Job cache" Style="{StaticResource SettingGroup}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SettingDescription}"
+                                       Text="Every captured or opened page is kept as a job so it can be reopened later (Open Job). You can optionally be warned when that cache grows past a limit. Nothing is ever deleted automatically — use Open Job to delete old jobs."/>
+                            <TextBlock Text="{Binding JobCacheUsageText}" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <CheckBox x:Name="LimitCountCheckBox" Content="Limit number of jobs to" Width="170" VerticalAlignment="Center"
+                                          IsChecked="{Binding JobCacheLimitCountEnabled}"/>
+                                <controls:NumericUpDown Value="{Binding JobCacheMaxJobs}" Minimum="1" Maximum="100000" Increment="1" DecimalPlaces="0"
+                                                         Width="80" Height="22"
+                                                         IsEnabled="{Binding IsChecked, ElementName=LimitCountCheckBox}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <CheckBox x:Name="LimitSizeCheckBox" Content="Limit total size to" Width="170" VerticalAlignment="Center"
+                                          IsChecked="{Binding JobCacheLimitSizeEnabled}"/>
+                                <controls:NumericUpDown Value="{Binding JobCacheMaxSizeMb}" Minimum="10" Maximum="10000000" Increment="100" DecimalPlaces="0"
+                                                         Width="80" Height="22" Margin="0,0,6,0"
+                                                         IsEnabled="{Binding IsChecked, ElementName=LimitSizeCheckBox}"/>
+                                <TextBlock Text="MB" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <CheckBox Content="Show a warning in the main window when a limit is reached" IsChecked="{Binding JobCacheShowWarning}"
+                                      Margin="0,0,0,2"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ======================= CAPTURE & EXPORT ======================= -->
+            <TabItem Header="Capture &amp; Export">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="12,12,12,0">
+
+                    <GroupBox Header="Silent export (no window)" Style="{StaticResource SettingGroup}">
+                        <StackPanel>
+                            <CheckBox x:Name="SilentEnabledCheck" Content="Save printed jobs straight to a folder, without opening Clean Print" IsChecked="{Binding SilentExport.Enabled}" Margin="0,0,0,4"/>
+                            <TextBlock Style="{StaticResource SettingDescription}" Margin="0,0,0,8"
+                                       Text="When on, whatever is sent to the Clean Print printer is saved as image files (one per page) in the folder, format and name chosen below, and the Clean Print window never opens. The pages are saved as captured: the Effects are not applied. Takes effect with the very next print."/>
+                            <StackPanel IsEnabled="{Binding IsChecked, ElementName=SilentEnabledCheck}">
+                                <TextBlock Text="Save to folder" Style="{StaticResource SettingTitle}"/>
+                                <DockPanel Margin="0,0,0,10">
+                                    <Button DockPanel.Dock="Right" Content="Browse..." Click="BrowseSilentFolderButton_Click" Padding="10,2" Margin="8,0,0,0"/>
+                                    <TextBox x:Name="SilentFolderBox" Text="{Binding SilentExport.Folder, UpdateSourceTrigger=PropertyChanged}" Height="24"
+                                             ToolTip="A folder path. It is created if it doesn't exist. Leave it as is for Pictures\CleanPrint."/>
+                                </DockPanel>
+                                <TextBlock Text="Image format" Style="{StaticResource SettingTitle}"/>
+                                <ComboBox ItemsSource="{Binding SilentFormatOptions}" SelectedItem="{Binding SilentExportFormatOption}" DisplayMemberPath="Label"
+                                          SelectionChanged="SilentExportInput_Changed" Width="260" Height="24" HorizontalAlignment="Left" Margin="0,0,0,10"/>
+                                <TextBlock Text="File name" Style="{StaticResource SettingTitle}"/>
+                                <TextBlock Style="{StaticResource SettingDescription}" Margin="0,0,0,4"
+                                           Text="Type the name you want. These parts are filled in for each print: {date}  {time}  {datetime}  {job}  {page}  {pages}. A job of several pages gets -1, -2... added unless the name has {page}. Nothing is ever overwritten: a number is added to a name already taken."/>
+                                <TextBox x:Name="SilentNameBox" Text="{Binding SilentExport.NamePattern, UpdateSourceTrigger=PropertyChanged}" TextChanged="SilentExportInput_Changed"
+                                         Width="380" Height="24" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="SilentExampleText" Style="{StaticResource SettingDescription}" Margin="0,4,0,8" FontStyle="Italic"/>
+                                <CheckBox Content="Also keep the job in Clean Print's job cache (so it can still be opened later)" IsChecked="{Binding SilentExport.KeepJob}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="Capture (new print jobs)" Style="{StaticResource SettingGroup}">
+                        <StackPanel>
+                            <TextBlock Text="Capture resolution (DPI)" Style="{StaticResource SettingTitle}"/>
+                            <TextBlock Style="{StaticResource SettingDescription}"
+                                       Text="By far the biggest lever on captured file size. Applies only to NEW jobs captured from here on. 150-300 covers on-screen review and most printing; go higher only for OCR-heavy work or reproducing very fine print."/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                <controls:NumericUpDown Value="{Binding ExportQuality.CaptureDpi}" Minimum="72" Maximum="1200" Increment="25" DecimalPlaces="0"
+                                                         Width="60" Height="22" Margin="0,0,10,0"/>
+                                <Slider Minimum="72" Maximum="1200" Value="{Binding ExportQuality.CaptureDpi}" Width="180" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <CheckBox Content="Save captured pages as JPG instead of PNG (lossy)" IsChecked="{Binding ExportQuality.UseJpegForCapture}" Margin="0,0,0,4"/>
+                            <TextBlock Style="{StaticResource SettingDescription}" Margin="0,0,0,2"
+                                       Text="Uses the JPG quality below. A much bigger size reduction than PNG compression tuning alone, but the quality loss is baked in from the very first save — every effect/export afterward starts from this already-lossy source. Off by default; only applies to new jobs from here on."/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="Image quality (capture and export)" Style="{StaticResource SettingGroup}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SettingDescription}"
+                                       Text="Applies to Export (both from the main window and in Print) AND to every page saved when a print job is first captured — lower PNG compression/JPG quality means smaller files on disk."/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="PNG compression (0=fastest/largest, 9=smallest/slowest)" VerticalAlignment="Center" Width="280" TextWrapping="Wrap"/>
+                                <controls:NumericUpDown Value="{Binding ExportQuality.PngCompressionLevel}" Minimum="0" Maximum="9" Increment="1" DecimalPlaces="0"
+                                                         Width="52" Height="22" Margin="8,0,10,0"/>
+                                <Slider Minimum="0" Maximum="9" Value="{Binding ExportQuality.PngCompressionLevel}" Width="120" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="JPG quality (1=smallest/lowest, 100=largest/best)" VerticalAlignment="Center" Width="280" TextWrapping="Wrap"/>
+                                <controls:NumericUpDown Value="{Binding ExportQuality.JpgQuality}" Minimum="1" Maximum="100" Increment="5" DecimalPlaces="0"
+                                                         Width="52" Height="22" Margin="8,0,10,0"/>
+                                <Slider Minimum="1" Maximum="100" Value="{Binding ExportQuality.JpgQuality}" Width="120" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="Export" Style="{StaticResource SettingGroup}">
+                        <StackPanel>
+                            <TextBlock Text="Default image format" Style="{StaticResource SettingTitle}"/>
+                            <TextBlock Style="{StaticResource SettingDescription}"
+                                       Text="The format the Export save box offers first (from the main window and from Print). You can still pick the other one each time."/>
+                            <ComboBox ItemsSource="{Binding ManualFormatOptions}" SelectedItem="{Binding DefaultExportFormatOption}" DisplayMemberPath="Label"
+                                      Width="260" Height="24" HorizontalAlignment="Left" Margin="0,0,0,14"/>
+
+                            <CheckBox Content="Link exported images to their job" IsChecked="{Binding LinkExportsToJobs}" Margin="0,0,0,4"/>
+                            <TextBlock Style="{StaticResource SettingDescription}" Margin="0,0,0,2"
+                                       Text="When on, each exported image's location is recorded inside the job itself — nothing extra is written near the exported file. Opening that exported image later (via Open Image(s)) offers to open the original job instead — with its raw capture, polygons, and effects still editable — rather than treating it as a brand new, unrelated image."/>
+                        </StackPanel>
+                    </GroupBox>
+
+                </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ======================= KEYBOARD SHORTCUTS ======================= -->
+            <TabItem Header="Keyboard Shortcuts">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12,12,12,0">
+                        <TextBlock Text="Click a shortcut box, then press the key combination you want. Press Escape while recording to clear it to no shortcut. Only applies while the main window (not a text field) has focus."
+                                   TextWrapping="Wrap" Foreground="{DynamicResource AppSecondaryTextBrush}" Margin="0,0,0,12"/>
+
+                        <GroupBox Header="Files &amp; jobs" Margin="0,0,0,12">
+                            <Grid Margin="8,8,8,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="170"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Open Image(s)" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="0" Grid.Column="1" Shortcut="{Binding Shortcuts.OpenImage}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="OpenImage" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Open Job" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="1" Grid.Column="1" Shortcut="{Binding Shortcuts.OpenJob}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="OpenJob" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Print" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="2" Grid.Column="1" Shortcut="{Binding Shortcuts.Print}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="Print" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Export Current Page" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="3" Grid.Column="1" Shortcut="{Binding Shortcuts.Export}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="Export" Margin="0,0,0,8"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox Header="View &amp; navigation" Margin="0,0,0,12">
+                            <Grid Margin="8,8,8,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="170"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Zoom In" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="0" Grid.Column="1" Shortcut="{Binding Shortcuts.ZoomIn}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="ZoomIn" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Zoom Out" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="1" Grid.Column="1" Shortcut="{Binding Shortcuts.ZoomOut}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="ZoomOut" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Fit Width" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="2" Grid.Column="1" Shortcut="{Binding Shortcuts.FitWidth}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="FitWidth" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Fit Height" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="3" Grid.Column="1" Shortcut="{Binding Shortcuts.FitHeight}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="FitHeight" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Rotate Left" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="4" Grid.Column="1" Shortcut="{Binding Shortcuts.RotateLeft}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="RotateLeft" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Rotate Right" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="5" Grid.Column="1" Shortcut="{Binding Shortcuts.RotateRight}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="RotateRight" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Toggle Effects" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="6" Grid.Column="1" Shortcut="{Binding Shortcuts.ToggleEffects}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="ToggleEffects" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="Settings" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="7" Grid.Column="1" Shortcut="{Binding Shortcuts.Settings}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="Settings" Margin="0,0,0,8"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox Header="Drawing" Margin="0,0,0,12">
+                            <Grid Margin="8,8,8,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="170"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Polygon" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="0" Grid.Column="1" Shortcut="{Binding Shortcuts.Polygon}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="Polygon" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Rectangle" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="1" Grid.Column="1" Shortcut="{Binding Shortcuts.Rectangle}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="Rectangle" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Finish Polygon (Leave Open)" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                <controls:ShortcutBox Grid.Row="2" Grid.Column="1" Shortcut="{Binding Shortcuts.FinishPolygonOpen}"
+                                                       AllShortcuts="{Binding Shortcuts}" ActionPropertyName="FinishPolygonOpen" Margin="0,0,0,8"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <Button Content="Reset All to Defaults" Click="ResetShortcutsButton_Click" Padding="10,4" Margin="0,4,0,12" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <Grid Grid.Row="1" Margin="0,12,0,0">
+            <Button Content="About..." Click="AboutButton_Click" Padding="14,4" HorizontalAlignment="Left"/>
+            <Button Content="Close" Click="CloseButton_Click" Padding="14,4" HorizontalAlignment="Right" IsDefault="True" IsCancel="True"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,0 +1,204 @@
+<Window x:Class="CleanPrint.App.BaseImageEditorWindow"
+        Icon="pack://application:,,,/Assets/CleanPrint.ico"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="clr-namespace:CleanPrint.App.Services"
+        xmlns:controls="clr-namespace:CleanPrint.App.Controls"
+        svc:UiScaling.Mode="Snapshot"
+        Title="Edit Base Image" Width="1280" Height="860" MinWidth="900" MinHeight="560"
+        WindowStartupLocation="Manual" ShowInTaskbar="False" SourceInitialized="Window_SourceInitialized"
+        PreviewKeyDown="Window_PreviewKeyDown" Closing="Window_Closing"
+        Background="{DynamicResource AppWindowBackgroundBrush}" Foreground="{DynamicResource AppWindowForegroundBrush}">
+    <!-- Position and size are set in Window_SourceInitialized: the window fills the usable height of the screen it opens on (the authored size above is only a ceiling),
+         so Save and Cancel are always on screen. -->
+    <DockPanel>
+        <!-- ===== TOOLBAR: turn, crop, grow the canvas, undo/redo, zoom/pan. A WrapPanel so it folds onto more lines rather than being cut off in a narrow window. ===== -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource AppChromeBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="10,6,10,4">
+            <WrapPanel>
+                <Button Style="{StaticResource FlatIconButton}" Click="RotateLeftButton_Click" Margin="0,1,2,1" ToolTip="Turn 90 degrees anticlockwise (changing the angle resets the crop).">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconRotateLeft}"/>
+                </Button>
+                <Button Style="{StaticResource FlatIconButton}" Click="RotateRightButton_Click" Margin="0,1,10,1" ToolTip="Turn 90 degrees clockwise (changing the angle resets the crop).">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconRotateRight}"/>
+                </Button>
+                <StackPanel Orientation="Horizontal">
+<TextBlock Text="Angle:" VerticalAlignment="Center" Margin="0,1,4,1"/>
+                <controls:NumericUpDown x:Name="AngleBox" Minimum="-180" Maximum="180" Increment="0.5" DecimalPlaces="1" Value="0" Width="62" Height="22" Margin="0,1,4,1"
+                                         ToolTip="Degrees, clockwise (negative = anticlockwise). The page is turned precisely by this angle; the canvas grows so nothing is cut off, and the new corners are white. Changing it resets the crop."/>
+                <TextBlock Text="°" VerticalAlignment="Center" Margin="0,1,16,1"/>
+</StackPanel>
+
+                <WrapPanel Margin="0,0,16,0">
+<TextBlock Text="Crop:" VerticalAlignment="Center" Margin="0,1,6,1" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Left" VerticalAlignment="Center" Margin="0,1,3,1"/>
+                <controls:NumericUpDown x:Name="CropLeftBox" Minimum="-100000" Maximum="100000" Increment="1" DecimalPlaces="0" Width="66" Height="22" Margin="0,1,8,1"
+                                         ToolTip="Pixels from the left of the turned page. Negative means the crop reaches out past the page's left edge (the extra is white)."/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Top" VerticalAlignment="Center" Margin="0,1,3,1"/>
+                <controls:NumericUpDown x:Name="CropTopBox" Minimum="-100000" Maximum="100000" Increment="1" DecimalPlaces="0" Width="66" Height="22" Margin="0,1,8,1"
+                                         ToolTip="Pixels from the top of the turned page. Negative means the crop reaches out past the page's top edge (the extra is white)."/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Width" VerticalAlignment="Center" Margin="0,1,3,1"/>
+                <controls:NumericUpDown x:Name="CropWidthBox" Minimum="1" Maximum="100000" Increment="1" DecimalPlaces="0" Width="66" Height="22" Margin="0,1,8,1"
+                                         ToolTip="Width of the saved page, in pixels. More than the page's own width makes the canvas bigger."/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Height" VerticalAlignment="Center" Margin="0,1,3,1"/>
+                <controls:NumericUpDown x:Name="CropHeightBox" Minimum="1" Maximum="100000" Increment="1" DecimalPlaces="0" Width="66" Height="22" Margin="0,1,10,1"
+                                         ToolTip="Height of the saved page, in pixels. More than the page's own height makes the canvas bigger."/>
+                </StackPanel>
+                <CheckBox x:Name="KeepProportionsCheck" Content="Keep proportions" VerticalAlignment="Center" Margin="0,1,10,1"
+                          ToolTip="While dragging the crop's handles, keep its width-to-height ratio."/>
+                <Button Content="Reset crop" Click="ResetCropButton_Click" Padding="8,2" Margin="0,1,16,1" ToolTip="Keep the whole page again."/>
+</WrapPanel>
+
+                <!-- Make the canvas bigger: widens the crop by these amounts on each side, and the new area is white. -->
+                <WrapPanel Margin="0,0,16,0">
+<TextBlock Text="Add white margin:" VerticalAlignment="Center" Margin="0,1,6,1" FontWeight="SemiBold"
+                           ToolTip="Make the canvas bigger: the page you save gets this much extra white space on each side."/>
+                <StackPanel Orientation="Horizontal">
+                <TextBlock Text="L" VerticalAlignment="Center" Margin="0,1,3,1"/>
+                <controls:NumericUpDown x:Name="MarginLeftBox" Minimum="0" Maximum="100000" Increment="10" DecimalPlaces="0" Width="62" Height="22" Margin="0,1,6,1" ToolTip="Pixels of white to add on the left."/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                <TextBlock Text="T" VerticalAlignment="Center" Margin="0,1,3,1"/>
+                <controls:NumericUpDown x:Name="MarginTopBox" Minimum="0" Maximum="100000" Increment="10" DecimalPlaces="0" Width="62" Height="22" Margin="0,1,6,1" ToolTip="Pixels of white to add at the top."/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                <TextBlock Text="R" VerticalAlignment="Center" Margin="0,1,3,1"/>
+                <controls:NumericUpDown x:Name="MarginRightBox" Minimum="0" Maximum="100000" Increment="10" DecimalPlaces="0" Width="62" Height="22" Margin="0,1,6,1" ToolTip="Pixels of white to add on the right."/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                <TextBlock Text="B" VerticalAlignment="Center" Margin="0,1,3,1"/>
+                <controls:NumericUpDown x:Name="MarginBottomBox" Minimum="0" Maximum="100000" Increment="10" DecimalPlaces="0" Width="62" Height="22" Margin="0,1,6,1" ToolTip="Pixels of white to add at the bottom."/>
+                </StackPanel>
+                <Button Content="Add" Click="AddMarginButton_Click" Padding="10,2" Margin="0,1,16,1"
+                        ToolTip="Widen the crop by these margins. (You can also drag the crop's handles out into the grey area around the page, or type a larger Width/Height.)"/>
+</WrapPanel>
+
+                <Button x:Name="UndoButton" Style="{StaticResource FlatIconButton}" Click="UndoButton_Click" Margin="0,1,2,1" ToolTip="Undo (Ctrl+Z)">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconUndo}"/>
+                </Button>
+                <Button x:Name="RedoButton" Style="{StaticResource FlatIconButton}" Click="RedoButton_Click" Margin="0,1,16,1" ToolTip="Redo (Ctrl+Y)">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconRedo}"/>
+                </Button>
+
+                <!-- Zoom and pan. Ctrl + mouse wheel zooms (at the pointer), the wheel scrolls, Shift + wheel scrolls sideways — as in the main window. Pan by dragging with the
+                     middle mouse button or holding Space; or switch this on and drag with the left button. -->
+                <ToggleButton x:Name="PanToggle" Width="26" Padding="0" Height="24" Margin="0,1,6,1" Focusable="False"
+                              ToolTip="Pan: drag the page around with the left button. (The middle mouse button, or holding Space while dragging, pans at any time.)">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconMove}" Width="14" Height="14"/>
+                </ToggleButton>
+                <Button Style="{StaticResource FlatIconButton}" Click="ZoomOutButton_Click" Margin="0,1,0,1" ToolTip="Zoom out (Ctrl + wheel)">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconZoomOut}"/>
+                </Button>
+                <TextBlock x:Name="ZoomText" Width="46" TextAlignment="Center" VerticalAlignment="Center" Margin="2,1,2,1" ToolTip="100% is one screen unit per image pixel"/>
+                <Button Style="{StaticResource FlatIconButton}" Click="ZoomInButton_Click" Margin="0,1,6,1" ToolTip="Zoom in (Ctrl + wheel)">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconZoomIn}"/>
+                </Button>
+                <Button Content="Fit" Click="ZoomFitButton_Click" Padding="8,2" Margin="0,1,4,1" ToolTip="Show the whole page"/>
+                <Button Content="100%" Click="Zoom100Button_Click" Padding="8,2" Margin="0,1,0,1" ToolTip="Actual size: one screen unit per image pixel"/>
+            </WrapPanel>
+        </Border>
+
+        <!-- ===== TOOLS: which tool the mouse is using on the page, and that tool's options. Order of the work they do (also the order they are applied in): Skew correction,
+             turn (Angle / Straighten), Crop, Erase — the editor applies effects, then skew, then the turn, then the crop, then paints the erased areas white. ===== -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource AppChromeBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="10,4,10,4">
+            <WrapPanel>
+                <TextBlock Text="Tool:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,1,8,1"/>
+                <ToggleButton x:Name="CropToolButton" Content="Crop" Tag="Crop" IsChecked="True" Click="ToolButton_Click" Padding="12,3" Margin="0,1,4,1" Focusable="False"
+                              ToolTip="Drag the crop's handles, or the crop itself, to choose what is kept. Drag outside it to draw a new one."/>
+                <ToggleButton x:Name="EraseToolButton" Content="Erase" Tag="Erase" Click="ToolButton_Click" Padding="12,3" Margin="0,1,4,1" Focusable="False"
+                              ToolTip="Paint areas white: drag a rectangle to fill it, or use the brush as an eraser."/>
+                <ToggleButton x:Name="StraightenToolButton" Content="Straighten" Tag="Straighten" Click="ToolButton_Click" Padding="12,3" Margin="0,1,4,1" Focusable="False"
+                              ToolTip="Draw a line along something that should be level or upright (a text line, the edge of the page): the page is turned to make it so."/>
+                <ToggleButton x:Name="SkewToolButton" Content="Skew" Tag="Skew" Click="ToolButton_Click" Padding="12,3" Margin="0,1,16,1" Focusable="False"
+                              ToolTip="Correct a page photographed at an angle: drag four corners onto the corners of the page and it is stretched to a true rectangle."/>
+
+                <TextBlock x:Name="ToolHint" VerticalAlignment="Center" Margin="0,1,0,1" Foreground="{DynamicResource AppSecondaryTextBrush}"/>
+
+                <!-- Erase options -->
+                <StackPanel x:Name="EraseOptions" Orientation="Horizontal" Visibility="Collapsed">
+                    <RadioButton x:Name="EraseRectangleRadio" Content="Fill a rectangle" GroupName="EraseMode" IsChecked="True" VerticalAlignment="Center" Margin="0,1,12,1"
+                                 ToolTip="Drag a rectangle: everything inside it is painted white."/>
+                    <RadioButton x:Name="EraseBrushRadio" Content="Brush" GroupName="EraseMode" VerticalAlignment="Center" Margin="0,1,6,1" ToolTip="Paint white with a round brush, like an eraser."/>
+                    <TextBlock Text="size" VerticalAlignment="Center" Margin="0,1,4,1"/>
+                    <controls:NumericUpDown x:Name="BrushSizeBox" Minimum="2" Maximum="3000" Increment="5" DecimalPlaces="0" Value="60" Width="66" Height="22" Margin="0,1,3,1"
+                                             ToolTip="The brush's diameter, in pixels of the page."/>
+                    <TextBlock Text="px" VerticalAlignment="Center" Margin="0,1,14,1"/>
+                    <Button Content="Clear erasures" Click="ClearErasuresButton_Click" Padding="8,2" Margin="0,1,0,1" ToolTip="Undo every white area (they can also be undone one at a time with Undo)."/>
+                </StackPanel>
+
+                <!-- Skew options -->
+                <StackPanel x:Name="SkewOptions" Orientation="Horizontal" Visibility="Collapsed">
+                    <Button Content="Apply skew correction" Click="ApplySkewButton_Click" Padding="10,2" Margin="0,1,6,1" FontWeight="SemiBold"
+                            ToolTip="Stretch the shape between the four corners to a true rectangle."/>
+                    <Button Content="Reset corners" Click="ResetSkewButton_Click" Padding="8,2" Margin="0,1,6,1" ToolTip="Put the four corners back near the edges of the image."/>
+                    <Button x:Name="RemoveSkewButton" Content="Remove correction" Click="RemoveSkewButton_Click" Padding="8,2" Margin="0,1,6,1" ToolTip="Go back to the page as photographed."/>
+                    <Button Content="Cancel" Click="CancelSkewButton_Click" Padding="8,2" Margin="0,1,0,1" ToolTip="Leave skew correction as it was."/>
+                </StackPanel>
+            </WrapPanel>
+        </Border>
+
+        <!-- ===== BOTTOM: what will be saved, and Save / Cancel ===== -->
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource AppChromeBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}"
+                BorderThickness="0,1,0,0" Padding="12,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock x:Name="InfoText" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="WarningText" TextWrapping="Wrap" Foreground="{DynamicResource AppSecondaryTextBrush}" Margin="0,2,0,0"
+                               Text="Saving replaces this page's image for good — the original is not kept (until you save, Undo and Redo work). Shapes, text and pictures on the page are moved to follow it."/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                    <Button x:Name="SaveButton" Content="Save" Click="SaveButton_Click" Padding="22,5" Margin="0,0,8,0" IsDefault="True"/>
+                    <Button x:Name="CancelButton" Content="Cancel" Click="CancelButton_Click" Padding="18,5" IsCancel="True"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ===== LEFT: the same Effects panel as the main window, with its own settings. Auto-crop and Dock are hidden (the crop is done by hand here). ===== -->
+        <Border DockPanel.Dock="Left" Width="330" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0">
+            <ContentControl x:Name="EffectsHost"/>
+        </Border>
+
+        <!-- ===== THE PAGE: the turned canvas inside a grey pasteboard, in a scrolling, zoomable view, with the crop drawn over it ===== -->
+        <Grid x:Name="Viewport" Background="{DynamicResource AppPreviewCanvasBackgroundBrush}" ClipToBounds="True" SizeChanged="Viewport_SizeChanged">
+            <ScrollViewer x:Name="ViewScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Focusable="False"
+                          PreviewMouseWheel="ViewScroll_PreviewMouseWheel" PreviewMouseDown="ViewScroll_PreviewMouseDown"
+                          PreviewMouseMove="ViewScroll_PreviewMouseMove" PreviewMouseUp="ViewScroll_PreviewMouseUp">
+                <!-- Sized in code to at least the visible area, so the page stays centred when it is smaller than the view and scrolls when it is bigger. -->
+                <Grid x:Name="StageHost">
+                    <Canvas x:Name="Stage" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" SnapsToDevicePixels="False"
+                            PreviewMouseLeftButtonDown="Stage_PreviewMouseLeftButtonDown" PreviewMouseMove="Stage_PreviewMouseMove"
+                            PreviewMouseLeftButtonUp="Stage_PreviewMouseLeftButtonUp">
+                        <Border x:Name="CropBackground" Background="White" IsHitTestVisible="False"/>
+                        <Border x:Name="CanvasBackground" Background="White" IsHitTestVisible="False"/>
+                        <Image x:Name="PreviewImage" Stretch="Fill" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <!-- the white areas painted by the Erase tool (built in code), on top of the page and under the crop's dimming -->
+                        <Canvas x:Name="EraseLayer" IsHitTestVisible="False"/>
+                        <!-- everything outside the crop is dimmed; the crop itself gets a dashed edge and eight handles (built in code) -->
+                        <Path x:Name="Dimmer" Fill="#99000000" IsHitTestVisible="False"/>
+                        <Rectangle x:Name="CropBorder" Stroke="White" StrokeThickness="1" IsHitTestVisible="False"/>
+                        <Rectangle x:Name="CropBorderDark" Stroke="Black" StrokeThickness="1" StrokeDashArray="4 4" IsHitTestVisible="False"/>
+                        <!-- Skew correction: the four-sided shape (its corner handles are built in code); the Erase tool's rubber-band rectangle; the Straighten tool's line -->
+                        <Polygon x:Name="QuadShape" Stroke="#FFFFC800" StrokeThickness="2" Fill="#22FFC800" Visibility="Collapsed" IsHitTestVisible="False"/>
+                        <Rectangle x:Name="EraseRubber" Stroke="#FFE53935" StrokeThickness="1.5" StrokeDashArray="4 3" Fill="#55FFFFFF" Visibility="Collapsed" IsHitTestVisible="False"/>
+                        <Line x:Name="StraightenLine" Stroke="#FFE53935" StrokeThickness="2" Visibility="Collapsed" IsHitTestVisible="False"/>
+                    </Canvas>
+                </Grid>
+            </ScrollViewer>
+            <TextBlock x:Name="BusyText" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="18" Foreground="White"
+                       Background="#CC000000" Padding="18,10"/>
+        </Grid>
+    </DockPanel>
+</Window>

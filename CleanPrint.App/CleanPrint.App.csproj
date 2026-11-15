@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CleanPrint.App</AssemblyName>
+    <!-- Shown in the About dialog. Keep in step with the ver_X.Y.Z release tag. -->
+    <Version>0.22.3</Version>
+    <!-- The logo: the .exe's icon in Explorer, the taskbar and Alt+Tab. Built from Assets/CleanPrint-logo.svg by Scripts/make_icon.py. -->
+    <ApplicationIcon>Assets\CleanPrint.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- Deliberately NO app.manifest / requestedExecutionLevel override: default is "asInvoker".
+         Only CleanPrint.Setup should ever prompt for admin. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
+    <PackageReference Include="OpenCvSharp4" Version="4.10.0.20241108" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.10.0.20241108" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CleanPrint.Core\CleanPrint.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Embedded in the assembly so XAML can refer to them as pack://application:,,,/Assets/... (window icons, the title bar logo, the
+       About dialog). The SVG is only the source they are built from, so it is not shipped. -->
+  <ItemGroup>
+    <Resource Include="Assets\CleanPrint.ico" />
+    <Resource Include="Assets\logo-64.png" />
+    <Resource Include="Assets\logo-256.png" />
+  </ItemGroup>
+
+</Project>

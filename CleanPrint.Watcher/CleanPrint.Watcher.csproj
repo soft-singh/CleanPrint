@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- WinExe = no console window pops up. This process is meant to run invisibly in the
+         background at logon; UseWPF is needed only for XPS/PNG rendering APIs, not for any UI. -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CleanPrint.Watcher</AssemblyName>
+    <!-- No window of its own, but it shows up by name in Task Manager and the Startup list — with the same logo as the App. -->
+    <ApplicationIcon>..\CleanPrint.App\Assets\CleanPrint.ico</ApplicationIcon>
+    <!-- Deliberately NO app.manifest / requestedExecutionLevel override here: default is
+         "asInvoker", meaning it runs with whatever rights the user already has. Only
+         CleanPrint.Setup should ever prompt for admin. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
+    <!-- Used only for PNG compression-level control on the final save step
+         (RenderPagesFromPackage) - WPF's own PngBitmapEncoder has no such setting. Same version
+         already used by CleanPrint.App, for consistency. This does meaningfully increase this
+         process's dependency footprint/deployment size, which matters more here than in the App
+         given the Watcher is meant to run invisibly in the background at logon - a deliberate
+         trade-off for the requested "PNG compression setting reduces file size everywhere,
+         including captured jobs" behavior. -->
+    <PackageReference Include="OpenCvSharp4" Version="4.10.0.20241108" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.10.0.20241108" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CleanPrint.Core\CleanPrint.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The Core's pure logic (no WPF, no files except a temp folder), checked as real C#. Run from the repository root: dotnet run (project Tests/CoreChecks)
+    It compiles the Core sources it needs straight in (rather than referencing CleanPrint.Core, which targets net9.0-windows), so it also runs on a machine without the Windows
+    desktop workload. Prints one PASS/FAIL line per check and ends with ALL PASSED.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../CleanPrint.Core/Models/*.cs" />
+    <Compile Include="../../CleanPrint.Core/Theming/*.cs" />
+    <Compile Include="../../CleanPrint.Core/Paths/CleanPrintPaths.cs" />
+    <Compile Include="../../CleanPrint.Core/Export/*.cs" Condition="Exists('../../CleanPrint.Core/Export')" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,162 @@
+<UserControl x:Class="CleanPrint.App.EffectsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:svc="clr-namespace:CleanPrint.App.Services"
+             svc:UiScaling.Mode="Live"
+             xmlns:controls="clr-namespace:CleanPrint.App.Controls"
+             Background="{DynamicResource AppPanelBackgroundBrush}">
+    <!-- 12px all round, so the right edge matches the left. When docked, MainWindow's 5px (transparent) splitter strip
+         sits between this panel and the preview and counts as empty space too, so SetDockedState takes that
+         much off the right inset — the visible gap to the preview's border is then 12px, same as the left edge. -->
+    <Grid x:Name="PanelRoot" Margin="12,12,4,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Preset: combo lists every preset currently saved (fixed system location — see
+             EffectPresetService) plus represents whatever's currently active. Save is a single
+             icon button rather than a labeled one; there's no separate Load button since picking
+             a preset from the combo loads it immediately. Cleared automatically (see
+             _settings.PropertyChanged in the code-behind) as soon as any control changes a value
+             away from what the loaded preset actually has. -->
+        <!-- A Grid (Auto / * / Auto / Auto), not a horizontal StackPanel with a fixed-width combo:
+             the combo's own column is the only star-sized one, so it absorbs whatever width is left
+             between the "Preset:" label and the two icon buttons and grows/shrinks as the panel is
+             resized (docked via the GridSplitter, or floating) instead of staying a fixed width. -->
+        <!-- 10px more space above than below, so the preset row sits clear of the panel's top edge. -->
+        <Grid x:Name="PresetRow" Grid.Row="0" Margin="0,10,8,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Preset:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+            <ComboBox Grid.Column="1" x:Name="PresetComboBox" MinWidth="60" Margin="0,0,6,0"
+                      SelectionChanged="PresetComboBox_SelectionChanged"/>
+            <!-- MinWidth="0" overrides the default Button style's own MinWidth (75px in the
+                 standard theme) — without it, that theme minimum was the actual source of the
+                 "extra space beyond the icon" regardless of how tight Padding was set, since
+                 Padding alone can't shrink a button below its style's own minimum width. -->
+            <Button Grid.Column="2" Click="SavePresetButton_Click" Padding="5,3" MinWidth="0" Margin="0,0,4,0" ToolTip="Save preset">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconSave}" Width="15" Height="15"/>
+            </Button>
+            <Button Grid.Column="3" x:Name="DeletePresetButton" Click="DeletePresetButton_Click" Padding="5,3" MinWidth="0"
+                    IsEnabled="False" ToolTip="Delete the selected preset">
+                <Path Style="{StaticResource IconPath}" Data="{StaticResource IconDelete}" Width="15" Height="15"/>
+            </Button>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <!-- The panel's own margin (PanelRoot) keeps everything the same distance from the right edge as from
+                 the left — but the scrollbar itself lives INSIDE that boundary and was left with no gap from the
+                 actual content (GroupBoxes/sliders), which is why headers looked like they were touching it. This
+                 inner margin gives the content the same breathing room from the scrollbar that it already has from
+                 the outer edge on the left. -->
+            <StackPanel Margin="0,0,8,0">
+                <!-- Auto-Crop Adjustment (first, since deciding whether/how to crop affects how
+                     everything below actually looks once applied) -->
+                <GroupBox x:Name="AutoCropGroup" Header="Auto-Crop Adjustment" Margin="0,0,0,10" Padding="8">
+                    <StackPanel>
+                        <CheckBox Content="Auto-crop to content" IsChecked="{Binding AutoCropEnabled}" Margin="0,0,0,8"
+                                  ToolTip="Trims white margins around the content before splitting/printing, regardless of the page size used when printing."/>
+                        <DockPanel Margin="0,0,0,8" IsEnabled="{Binding AutoCropEnabled}">
+                            <TextBlock Text="White Threshold" Width="130" VerticalAlignment="Center"/>
+                            <controls:NumericUpDown Value="{Binding AutoCropWhiteThreshold}" Minimum="0" Maximum="255" Increment="1" DecimalPlaces="0"
+                                                     Width="52" Height="22" DockPanel.Dock="Right"/>
+                            <Slider Minimum="0" Maximum="255" Value="{Binding AutoCropWhiteThreshold}" Margin="8,0"
+                                    ToolTip="How dark a pixel must be to count as content rather than background. Lower this if faint content near the page edge is being cropped away."/>
+                        </DockPanel>
+                        <DockPanel IsEnabled="{Binding AutoCropEnabled}">
+                            <TextBlock Text="Padding (px, -1=auto)" Width="130" VerticalAlignment="Center"/>
+                            <controls:NumericUpDown Value="{Binding AutoCropPaddingPixels}" Minimum="-1" Maximum="500" Increment="5" DecimalPlaces="0"
+                                                     Width="52" Height="22" DockPanel.Dock="Right"/>
+                        </DockPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Background Whitening -->
+                <GroupBox Header="Background Whitening" Margin="0,0,0,10" Padding="8">
+                    <StackPanel>
+                        <CheckBox Content="Enabled" IsChecked="{Binding WhiteningEnabled}" Margin="0,0,0,6"/>
+                        <DockPanel>
+                            <TextBlock Text="Strength" Width="90" VerticalAlignment="Center"/>
+                            <controls:NumericUpDown Value="{Binding WhiteningStrength}" Minimum="0" Maximum="100" Increment="5" DecimalPlaces="0"
+                                                     Width="52" Height="22" DockPanel.Dock="Right" IsEnabled="{Binding WhiteningEnabled}"/>
+                            <Slider Minimum="0" Maximum="100" Value="{Binding WhiteningStrength}" Margin="8,0" IsEnabled="{Binding WhiteningEnabled}"/>
+                        </DockPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Brightness -->
+                <GroupBox Header="Brightness" Margin="0,0,0,10" Padding="8">
+                    <DockPanel>
+                        <controls:NumericUpDown Value="{Binding Brightness}" Minimum="-100" Maximum="100" Increment="5" DecimalPlaces="0"
+                                                 Width="52" Height="22" DockPanel.Dock="Right"/>
+                        <Slider Minimum="-100" Maximum="100" Value="{Binding Brightness}" Margin="0,0,8,0"/>
+                    </DockPanel>
+                </GroupBox>
+
+                <!-- Contrast -->
+                <GroupBox Header="Contrast" Margin="0,0,0,10" Padding="8">
+                    <DockPanel>
+                        <controls:NumericUpDown Value="{Binding Contrast}" Minimum="-100" Maximum="100" Increment="5" DecimalPlaces="0"
+                                                 Width="52" Height="22" DockPanel.Dock="Right"/>
+                        <Slider Minimum="-100" Maximum="100" Value="{Binding Contrast}" Margin="0,0,8,0"/>
+                    </DockPanel>
+                </GroupBox>
+
+                <!-- Midtone / Gamma -->
+                <GroupBox Header="Midtone (Gamma)" Margin="0,0,0,10" Padding="8">
+                    <DockPanel>
+                        <controls:NumericUpDown Value="{Binding Midtone}" Minimum="0.1" Maximum="3.0" Increment="0.1" DecimalPlaces="1"
+                                                 Width="52" Height="22" DockPanel.Dock="Right"/>
+                        <Slider Minimum="0.1" Maximum="3.0" Value="{Binding Midtone}" Margin="0,0,8,0"/>
+                    </DockPanel>
+                </GroupBox>
+
+                <!-- Threshold -->
+                <GroupBox Header="Threshold (Black &amp; White)" Margin="0,0,0,10" Padding="8">
+                    <StackPanel>
+                        <CheckBox Content="Enabled" IsChecked="{Binding ThresholdEnabled}" Margin="0,0,0,6"
+                                  ToolTip="Binarizes the page to pure black/white. A drastic, final-stage effect — everything else above still applies first, but anything below has little visible effect once this is on."/>
+                        <DockPanel>
+                            <TextBlock Text="Level" Width="90" VerticalAlignment="Center"/>
+                            <controls:NumericUpDown Value="{Binding ThresholdLevel}" Minimum="0" Maximum="255" Increment="5" DecimalPlaces="0"
+                                                     Width="52" Height="22" DockPanel.Dock="Right" IsEnabled="{Binding ThresholdEnabled}"/>
+                            <Slider Minimum="0" Maximum="255" Value="{Binding ThresholdLevel}" Margin="8,0" IsEnabled="{Binding ThresholdEnabled}"/>
+                        </DockPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Noise Reduction -->
+                <GroupBox Header="Noise Reduction" Margin="0,0,0,10" Padding="8">
+                    <DockPanel>
+                        <controls:NumericUpDown Value="{Binding NoiseReduction}" Minimum="0" Maximum="100" Increment="5" DecimalPlaces="0"
+                                                 Width="52" Height="22" DockPanel.Dock="Right"/>
+                        <Slider Minimum="0" Maximum="100" Value="{Binding NoiseReduction}" Margin="0,0,8,0"/>
+                    </DockPanel>
+                </GroupBox>
+
+                <!-- Sharpen -->
+                <GroupBox Header="Sharpen" Margin="0,0,0,10" Padding="8">
+                    <DockPanel>
+                        <controls:NumericUpDown Value="{Binding Sharpen}" Minimum="0" Maximum="100" Increment="5" DecimalPlaces="0"
+                                                 Width="52" Height="22" DockPanel.Dock="Right"/>
+                        <Slider Minimum="0" Maximum="100" Value="{Binding Sharpen}" Margin="0,0,8,0"/>
+                    </DockPanel>
+                </GroupBox>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Right-aligned, inside the panel's symmetric margin; the gap between the two is small enough that
+             they read as a pair. -->
+        <StackPanel x:Name="FooterRow" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,8,0">
+            <Button x:Name="DockToggleButton" Content="Undock" Click="DockToggleButton_Click" Padding="10,4" Margin="0,0,6,0"
+                    ToolTip="Docked: attached to the main window's own layout. Undocked: a separate, freely-movable window. Closing the floating window re-docks it rather than losing it."/>
+            <Button Content="Reset to Defaults" Click="ResetButton_Click" Padding="10,4"/>
+        </StackPanel>
+    </Grid>
+</UserControl>
