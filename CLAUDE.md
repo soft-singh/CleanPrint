@@ -15,7 +15,7 @@ here.
 - `CleanPrint.App` — the WPF UI. `MainViewModel.cs` and `MainWindow.xaml`/
   `.xaml.cs` hold almost all the logic; `PolygonViewModel.cs` is the
   per-polygon state (vertices, purpose, color/thickness, selection).
-- `Scripts/` — `Publish.ps1`, `AddCleanPrinter.ps1`, `RemoveCleanPrinter.ps1`
+- `Scripts/` — `Publish`, `AddCleanPrinter`, `RemoveCleanPrinter`, `DeleteObsoleteFiles` (EVERY script ships as .ps1 + .cmd twin)
   (PowerShell, not part of the .NET build).
 
 ## Versioning convention
@@ -272,3 +272,9 @@ before the person actually runs the app.
 ## All features requested so far are built
 Slim scrollbars, mirror, new blank job with page management, pictures on a page, and edit base image. Possible follow-ups the user has not asked for: zoom inside the editor; a one-level
 "undo the base image edit" in the main window (today undo exists only inside the editor); multi-select insert of pictures.
+
+## Delivery rules (ver_0.22.4)
+- Every script in `Scripts/` ships as `.ps1` AND a `.cmd` wrapper (`powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0X.ps1" %*`; CRLF line endings).
+- `Scripts/DeleteObsoleteFiles.ps1/.cmd` holds the list `$Obsolete` of source files removed from the project. When a version deletes a file, ADD it to that list (unzipping over an old tree never deletes).
+- The zip has ONE top-level folder `CleanPrint/` holding everything: `cd /home/claude && zip -rq out.zip CleanPrint -x "CleanPrint/.git/*" "*/bin/*" "*/obj/*"`.
+- `.cmd` files are meant to be DOUBLE-CLICKED: Add/Remove self-elevate (UAC) from the .cmd, all .cmd files `pause` at the end so the window stays open. Keep CRLF.

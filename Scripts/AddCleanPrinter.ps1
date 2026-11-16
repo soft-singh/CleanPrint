@@ -231,4 +231,4 @@ catch {
 
 # Keep the window open when launched by double-click
 Write-Host "Press Enter to close..."
-Read-Host
+Read-Host

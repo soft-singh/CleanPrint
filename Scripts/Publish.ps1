@@ -80,10 +80,17 @@ try {
 
     Copy-Item $addPrinterScript $publish -Force
     Copy-Item $removePrinterScript $publish -Force
+foreach ($cmd in 'AddCleanPrinter.cmd', 'RemoveCleanPrinter.cmd') {
+    $src = Join-Path $PSScriptRoot $cmd
+    if (-not (Test-Path $src)) { throw "Required file not found: $src" }
+    Copy-Item $src $publish -Force
+}
 
     Write-Host "Copied:"
     Write-Host "  AddCleanPrinter.ps1"
     Write-Host "  RemoveCleanPrinter.ps1"
+Write-Host "  AddCleanPrinter.cmd"
+Write-Host "  RemoveCleanPrinter.cmd"
 
     Write-Host ""
     Write-Host "========================================="

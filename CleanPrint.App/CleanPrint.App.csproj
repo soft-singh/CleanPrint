@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>CleanPrint.App</AssemblyName>
     <!-- Shown in the About dialog. Keep in step with the ver_X.Y.Z release tag. -->
-    <Version>0.22.3</Version>
+    <Version>0.22.5</Version>
     <!-- The logo: the .exe's icon in Explorer, the taskbar and Alt+Tab. Built from Assets/CleanPrint-logo.svg by Scripts/make_icon.py. -->
     <ApplicationIcon>Assets\CleanPrint.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
